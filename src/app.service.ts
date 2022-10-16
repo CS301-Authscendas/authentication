@@ -1,7 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import * as twoFactor from "node-2fa";
-import { UserDTO } from "./dto/user.dto";
+import { UserDTO, UserStatus } from "./dto/user.dto";
 import { NotificationService } from "./notification/notification.service";
 import { UserService } from "./user/user.service";
 
@@ -13,7 +13,7 @@ export class AppService {
         private readonly configService: ConfigService,
     ) {}
 
-    async generateTwoFactor(email: string): Promise<boolean> {
+    async generate2FAToken(email: string): Promise<boolean> {
         const newSecret = twoFactor.generateSecret();
 
         if (newSecret == null || newSecret.secret == null) {
@@ -38,7 +38,7 @@ export class AppService {
         return true;
     }
 
-    async validateTwoFactorToken(email: string, token: string): Promise<boolean> {
+    async validate2FAToken(email: string, token: string): Promise<boolean> {
         const userSecret = await this.userService.getTwoFactorSecret(email);
 
         if (!userSecret) {
@@ -48,5 +48,17 @@ export class AppService {
         const tokenValidWindow: number = this.configService.get("TOKEN_WINDOW") ?? 1;
         const results = twoFactor.verifyToken(userSecret, token, tokenValidWindow);
         return results?.delta != null && results.delta == 0;
+    }
+
+    async signupRequest2FAToken(email: string): Promise<any> {
+        // Fetch user, check if user has already signed up before.
+        const userDetails: UserDTO = await this.userService.fetchUserDetails(email);
+
+        if (userDetails.status === UserStatus.Approved) {
+            throw new Error("User has already signed up");
+        }
+
+        // Generate 2FA and send 2FA token.
+        return await this.generate2FAToken(email);
     }
 }

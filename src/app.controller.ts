@@ -14,9 +14,9 @@ export class AppController {
         return "Auth service is awake!";
     }
 
-    @Get("auth/generate-2fa-token/:email")
+    @Get("generate-2fa-token/:email")
     async send2FAToken(@Param("email") email: string): Promise<ResponseObjDTO> {
-        const success: boolean = await this.appService.generateTwoFactor(email);
+        const success: boolean = await this.appService.generate2FAToken(email);
 
         if (success) {
             return {
@@ -28,9 +28,9 @@ export class AppController {
         throw new HttpException("Error generating 2FA token", HttpStatus.INTERNAL_SERVER_ERROR);
     }
 
-    @Post("auth/validate-2fa-token")
+    @Post("validate-2fa-token")
     async validate2FAToken(@Body() requestBody: TokenRequestDTO): Promise<ResponseObjDTO> {
-        const success = await this.appService.validateTwoFactorToken(requestBody.email, requestBody.token);
+        const success = await this.appService.validate2FAToken(requestBody.email, requestBody.token);
 
         if (success) {
             return {
@@ -42,8 +42,13 @@ export class AppController {
         throw new HttpException("Invalid or expired 2FA token.", HttpStatus.FORBIDDEN);
     }
 
-    @Post("auth/signup")
-    async signup(@Body() requestBody: TokenRequestDTO): Promise<string> {
-        return await this.userService.signup(requestBody.email);
+    @Get("signup-request-2fa-token/:email")
+    async signup(@Param("email") email: string): Promise<ResponseObjDTO> {
+        try {
+            const res = await this.appService.signupRequest2FAToken(email);
+            return res;
+        } catch (error) {
+            throw new HttpException((error as Error).message, HttpStatus.BAD_REQUEST);
+        }
     }
 }

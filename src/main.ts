@@ -1,7 +1,6 @@
-import { NestFactory } from "@nestjs/core";
 import { ConfigService } from "@nestjs/config";
+import { NestFactory } from "@nestjs/core";
 import { AppModule } from "./app.module";
-import { NotificationService } from "./notification/notification.service";
 
 async function bootstrap() {
     const app = await NestFactory.create(AppModule);
@@ -9,8 +8,10 @@ async function bootstrap() {
 
     app.setGlobalPrefix("auth");
 
-    const notificationService = app.get<NotificationService>(NotificationService);
-    app.connectMicroservice(notificationService.getOptions());
+    // Consumer queues:
+    // const mqService = app.get<MqService>(MqService);
+    // app.connectMicroservice(mqService.getOptions("user"));
+    // app.connectMicroservice(mqService.getOptions("notification"));
 
     await app.startAllMicroservices();
     await app.listen(configService.get("PORT") ?? 3001);

@@ -1,8 +1,9 @@
 import { ConfigModule } from "@nestjs/config";
 import { Test, TestingModule } from "@nestjs/testing";
 import { AppController } from "./app.controller";
+import { AppService } from "./app.service";
+import { MqModule } from "./mq/mq.module";
 import { NotificationModule } from "./notification/notification.module";
-import { NotificationService } from "./notification/notification.service";
 import { UserModule } from "./user/user.module";
 import { UserService } from "./user/user.service";
 
@@ -11,9 +12,9 @@ describe("AppController", () => {
 
     beforeEach(async () => {
         const app: TestingModule = await Test.createTestingModule({
-            imports: [ConfigModule.forRoot(), UserModule, NotificationModule],
+            imports: [ConfigModule.forRoot({ isGlobal: true }), UserModule, NotificationModule, MqModule],
             controllers: [AppController],
-            providers: [UserService, NotificationService],
+            providers: [UserService, AppService],
         }).compile();
 
         appController = app.get<AppController>(AppController);

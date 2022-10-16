@@ -1,5 +1,5 @@
 import { HttpService } from "@nestjs/axios";
-import { HttpException, Inject, Injectable, Logger } from "@nestjs/common";
+import { HttpException, Inject, Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { ClientProxy } from "@nestjs/microservices";
 import { catchError, lastValueFrom, map } from "rxjs";
@@ -43,22 +43,5 @@ export class UserService {
         const userDetails: UserDTO = await this.fetchUserDetails(email);
 
         return userDetails.twoFATokenSecret;
-    }
-
-    async signup(email: string): Promise<any> {
-        // TODO:
-        // Generate 2FA
-        // 2FA authentication for email ownership
-        try {
-            const userDetails = this.fetchUserDetails(email);
-            Logger.log(userDetails);
-        } catch (error) {
-            return error;
-        }
-
-        // Fetch user via email to check if user has been seeded
-        // Store user credentials in the database
-
-        return "Hello";
     }
 }

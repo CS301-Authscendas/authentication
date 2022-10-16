@@ -1,6 +1,6 @@
 export enum UserStatus {
-    Approved = "Approved",
-    Pending = "Pending",
+    Approved = "APPROVED",
+    Pending = "PENDING",
 }
 
 export interface UserDTO {

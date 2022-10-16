@@ -1,3 +1,4 @@
+import { HttpModule } from "@nestjs/axios";
 import { Module } from "@nestjs/common";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { ClientsModule, Transport } from "@nestjs/microservices";
@@ -5,9 +6,11 @@ import { UserService } from "./user.service";
 
 @Module({
     imports: [
+        HttpModule,
+        ConfigModule,
         ClientsModule.registerAsync([
             {
-                name: "NOTIFICATION_RMQ_SERVICE",
+                name: "USER_RMQ_SERVICE",
                 imports: [ConfigModule],
                 inject: [ConfigService],
                 useFactory: async (configService: ConfigService) => ({

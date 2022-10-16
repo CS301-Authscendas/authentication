@@ -1,6 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import * as twoFactor from "node-2fa";
+import { UserDTO } from "./dto/user.dto";
 import { NotificationService } from "./notification/notification.service";
 import { UserService } from "./user/user.service";
 
@@ -19,21 +20,31 @@ export class AppService {
             return false;
         }
 
-        const success = await this.userService.saveTwoFactorSecret(email, newSecret.secret);
+        const userDetails: UserDTO = await this.userService.fetchUserDetails(email);
 
-        if (!success) {
-            return false;
-        }
+        const name = `${userDetails.firstName} ${userDetails.lastName}`;
+
+        // Save 2FA secret via Organizations microservice.
+        this.userService.saveTwoFactorSecret(email, newSecret.secret);
 
         const newToken = twoFactor.generateToken(newSecret.secret);
 
-        // TODO: Send notification via notification services.
+        if (!newToken?.token) {
+            return false;
+        }
 
-        return newToken?.token != null;
+        // Send 2FA token via Notifications microservice.
+        this.notificationService.trigger2FATokenEmail(name, email, newToken.token);
+        return true;
     }
 
     async validateTwoFactorToken(email: string, token: string): Promise<boolean> {
         const userSecret = await this.userService.getTwoFactorSecret(email);
+
+        if (!userSecret) {
+            return false;
+        }
+
         const tokenValidWindow: number = this.configService.get("TOKEN_WINDOW") ?? 1;
         const results = twoFactor.verifyToken(userSecret, token, tokenValidWindow);
         return results?.delta != null && results.delta == 0;

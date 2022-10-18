@@ -1,6 +1,6 @@
 import { Inject, Injectable } from "@nestjs/common";
 import { ClientProxy } from "@nestjs/microservices";
-import { TokenEmailParamsDTO } from "src/dto/token-email-params.dto";
+import { TokenEmailParamsDTO } from "../dto/token-email-params.dto";
 
 @Injectable()
 export class NotificationService {

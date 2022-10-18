@@ -1,7 +1,9 @@
 import { HttpModule } from "@nestjs/axios";
-import { ConfigModule, ConfigService } from "@nestjs/config";
-import { ClientsModule, Transport } from "@nestjs/microservices";
+import { ConfigModule } from "@nestjs/config";
+import { ClientsModule } from "@nestjs/microservices";
 import { Test, TestingModule } from "@nestjs/testing";
+import { MqModule } from "../mq/mq.module";
+import { MqService } from "../mq/mq.service";
 import { UserService } from "./user.service";
 
 describe("UserService", () => {
@@ -12,29 +14,13 @@ describe("UserService", () => {
             imports: [
                 HttpModule,
                 ConfigModule,
+                MqModule,
                 ClientsModule.registerAsync([
                     {
                         name: "USER_RMQ_SERVICE",
-                        imports: [ConfigModule],
-                        inject: [ConfigService],
-                        useFactory: async (configService: ConfigService) => ({
-                            transport: Transport.RMQ,
-                            options: {
-                                urls: [
-                                    `${configService.get<string>(
-                                        "RABBITMQ_TRANSPORT_METHOD",
-                                    )}://${configService.get<string>("RABBITMQ_USER")}:${configService.get<string>(
-                                        "RABBITMQ_PASSWORD",
-                                    )}@${configService.get<string>("RABBITMQ_HOST")}:${configService.get<string>(
-                                        "RABBITMQ_PORT",
-                                    )}`,
-                                ],
-                                queue: "notification",
-                                queueOptions: {
-                                    durable: true,
-                                },
-                            },
-                        }),
+                        imports: [MqModule],
+                        inject: [MqService],
+                        useFactory: (mqService: MqService) => mqService.getClientProvider("user"),
                     },
                 ]),
             ],

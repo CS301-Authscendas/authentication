@@ -1,5 +1,5 @@
 import { HttpModule } from "@nestjs/axios";
-import { ConfigModule } from "@nestjs/config";
+import { ConfigModule, ConfigService } from "@nestjs/config";
 import { ClientsModule } from "@nestjs/microservices";
 import { Test, TestingModule } from "@nestjs/testing";
 import { MqModule } from "../mq/mq.module";
@@ -18,9 +18,10 @@ describe("UserService", () => {
                 ClientsModule.registerAsync([
                     {
                         name: "USER_RMQ_SERVICE",
-                        imports: [MqModule],
-                        inject: [MqService],
-                        useFactory: (mqService: MqService) => mqService.getClientProvider("user"),
+                        imports: [MqModule, ConfigModule],
+                        inject: [MqService, ConfigService],
+                        useFactory: (mqService: MqService, configService: ConfigService) =>
+                            mqService.getClientProvider(configService.get("USER_QUEUE_NAME") ?? ""),
                     },
                 ]),
             ],

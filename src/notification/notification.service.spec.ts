@@ -1,6 +1,7 @@
-import { ConfigModule, ConfigService } from "@nestjs/config";
-import { ClientsModule, Transport } from "@nestjs/microservices";
+import { ClientsModule } from "@nestjs/microservices";
 import { Test, TestingModule } from "@nestjs/testing";
+import { MqModule } from "../mq/mq.module";
+import { MqService } from "../mq/mq.service";
 import { NotificationService } from "./notification.service";
 
 describe("NotificationService", () => {
@@ -9,29 +10,13 @@ describe("NotificationService", () => {
     beforeEach(async () => {
         const module: TestingModule = await Test.createTestingModule({
             imports: [
+                MqModule,
                 ClientsModule.registerAsync([
                     {
                         name: "NOTIFICATION_RMQ_SERVICE",
-                        imports: [ConfigModule],
-                        inject: [ConfigService],
-                        useFactory: async (configService: ConfigService) => ({
-                            transport: Transport.RMQ,
-                            options: {
-                                urls: [
-                                    `${configService.get<string>(
-                                        "RABBITMQ_TRANSPORT_METHOD",
-                                    )}://${configService.get<string>("RABBITMQ_USER")}:${configService.get<string>(
-                                        "RABBITMQ_PASSWORD",
-                                    )}@${configService.get<string>("RABBITMQ_HOST")}:${configService.get<string>(
-                                        "RABBITMQ_PORT",
-                                    )}`,
-                                ],
-                                queue: "notification",
-                                queueOptions: {
-                                    durable: true,
-                                },
-                            },
-                        }),
+                        imports: [MqModule],
+                        inject: [MqService],
+                        useFactory: (mqService: MqService) => mqService.getClientProvider("notification"),
                     },
                 ]),
             ],

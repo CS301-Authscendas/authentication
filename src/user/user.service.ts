@@ -3,8 +3,9 @@ import { HttpException, Inject, Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { ClientProxy } from "@nestjs/microservices";
 import { catchError, lastValueFrom, map } from "rxjs";
-import { TokenSecretDTO } from "src/dto/token-secret.dto";
-import { UserDTO } from "src/dto/user.dto";
+
+import { TokenSecretDTO } from "../dto/token-secret.dto";
+import { UserDTO } from "../dto/user.dto";
 
 @Injectable()
 export class UserService {
@@ -19,6 +20,21 @@ export class UserService {
         const baseUrl = this.configService.get("BASE_USER_URL");
         return await lastValueFrom(
             this.httpService.get(`http://${baseUrl}?email=${email}`).pipe(
+                map((response) => {
+                    return response?.data;
+                }),
+                catchError((e) => {
+                    throw new HttpException(e.response.data, e.response.status);
+                }),
+            ),
+        );
+    }
+
+    async updateUserDetails(userObj: UserDTO): Promise<boolean> {
+        // TODO: Daryl needs to provide a response from the endpoint.
+        const baseUrl = this.configService.get("BASE_USER_URL");
+        return await lastValueFrom(
+            this.httpService.put(`http://${baseUrl}`, userObj).pipe(
                 map((response) => {
                     return response?.data;
                 }),

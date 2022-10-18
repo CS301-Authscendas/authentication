@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { RmqContext, RmqOptions, Transport } from "@nestjs/microservices";
+import { ClientProvider, RmqContext, RmqOptions, Transport } from "@nestjs/microservices";
 
 @Injectable()
 export class MqService {
@@ -20,6 +20,25 @@ export class MqService {
                 queue: queueName,
                 noAck,
                 persistent: true,
+            },
+        };
+    }
+
+    getClientProvider(queueName: string): ClientProvider {
+        return {
+            transport: Transport.RMQ,
+            options: {
+                urls: [
+                    `${this.configService.get<string>("RABBITMQ_TRANSPORT_METHOD")}://${this.configService.get<string>(
+                        "RABBITMQ_USER",
+                    )}:${this.configService.get<string>("RABBITMQ_PASSWORD")}@${this.configService.get<string>(
+                        "RABBITMQ_HOST",
+                    )}:${this.configService.get<string>("RABBITMQ_PORT")}`,
+                ],
+                queue: queueName,
+                queueOptions: {
+                    durable: true,
+                },
             },
         };
     }

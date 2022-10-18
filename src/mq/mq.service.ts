@@ -6,17 +6,17 @@ import { ClientProvider, RmqContext, RmqOptions, Transport } from "@nestjs/micro
 export class MqService {
     constructor(private readonly configService: ConfigService) {}
 
-    getOptions(queueName: string, noAck = false): RmqOptions {
-        const transportMethod = this.configService.get<string>("RABBITMQ_TRANSPORT_METHOD");
-        const user = this.configService.get<string>("RABBITMQ_USER");
-        const password = this.configService.get<string>("RABBITMQ_PASSWORD");
-        const host = this.configService.get<string>("RABBITMQ_HOST");
-        const port = this.configService.get<string>("RABBITMQ_PORT");
+    private transportMethod = this.configService.get<string>("RABBITMQ_TRANSPORT_METHOD");
+    private user = this.configService.get<string>("RABBITMQ_USER");
+    private password = this.configService.get<string>("RABBITMQ_PASSWORD");
+    private host = this.configService.get<string>("RABBITMQ_HOST");
+    private port = this.configService.get<string>("RABBITMQ_PORT");
 
+    getOptions(queueName: string, noAck = false): RmqOptions {
         return {
             transport: Transport.RMQ,
             options: {
-                urls: [`${transportMethod}://${user}:${password}@${host}:${port}`],
+                urls: [`${this.transportMethod}://${this.user}:${this.password}@${this.host}:${this.port}`],
                 queue: queueName,
                 noAck,
                 persistent: true,
@@ -28,13 +28,7 @@ export class MqService {
         return {
             transport: Transport.RMQ,
             options: {
-                urls: [
-                    `${this.configService.get<string>("RABBITMQ_TRANSPORT_METHOD")}://${this.configService.get<string>(
-                        "RABBITMQ_USER",
-                    )}:${this.configService.get<string>("RABBITMQ_PASSWORD")}@${this.configService.get<string>(
-                        "RABBITMQ_HOST",
-                    )}:${this.configService.get<string>("RABBITMQ_PORT")}`,
-                ],
+                urls: [`${this.transportMethod}://${this.user}:${this.password}@${this.host}:${this.port}`],
                 queue: queueName,
                 queueOptions: {
                     durable: true,

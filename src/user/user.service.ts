@@ -19,7 +19,7 @@ export class UserService {
     async fetchUserDetails(email: string): Promise<UserDTO> {
         const baseUrl = this.configService.get("BASE_USER_URL");
         return await lastValueFrom(
-            this.httpService.get(`http://${baseUrl}?email=${email}`).pipe(
+            this.httpService.get(`${baseUrl}?email=${email}`).pipe(
                 map((response) => {
                     return response?.data;
                 }),
@@ -27,6 +27,27 @@ export class UserService {
                     throw new HttpException(e.response.data, e.response.status);
                 }),
             ),
+        );
+    }
+
+    async fetchUserDetailsSSO(token: string): Promise<UserDTO> {
+        const baseUrl = this.configService.get("SSO_BASE_URL");
+
+        return await lastValueFrom(
+            this.httpService
+                .get(`${baseUrl}/oauth/userinfo`, {
+                    headers: {
+                        Authorization: token,
+                    },
+                })
+                .pipe(
+                    map((response) => {
+                        return response?.data;
+                    }),
+                    catchError((e) => {
+                        throw new HttpException(e.response.data, e.response.status);
+                    }),
+                ),
         );
     }
 

@@ -1,13 +1,21 @@
-import { BadRequestException, Injectable, UnauthorizedException } from "@nestjs/common";
+import {
+    BadRequestException,
+    HttpException,
+    Injectable,
+    InternalServerErrorException,
+    UnauthorizedException,
+} from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import * as twoFactor from "node-2fa";
 import { UserDTO, UserStatus } from "../dto/user.dto";
 import { NotificationService } from "../notification/notification.service";
 import { UserService } from "../user/user.service";
 
+import { HttpService } from "@nestjs/axios";
 import * as bcrypt from "bcrypt";
-import * as jwt from "jsonwebtoken";
+import { decode, sign, verify } from "jsonwebtoken";
 import JwksRsa, { JSONWebKey, JwksClient } from "jwks-rsa";
+import { catchError, lastValueFrom, map } from "rxjs";
 import { UserCreationDTO } from "../dto/user-creation.dto";
 import { UserJSONPayload } from "../dto/user-json-payload.dto";
 import { UserJWTData } from "../dto/user-jwt-data.dto";
@@ -16,6 +24,7 @@ import { UserJWTData } from "../dto/user-jwt-data.dto";
 export class AuthService {
     private client: JwksClient;
     constructor(
+        private readonly httpService: HttpService,
         private readonly userService: UserService,
         private readonly notificationService: NotificationService,
         private readonly configService: ConfigService,
@@ -43,7 +52,7 @@ export class AuthService {
         const header = keys[Math.round(Math.random() * (keys.length - 1))];
         const key: JwksRsa.SigningKey = await this.client.getSigningKey(header.kid);
 
-        return jwt.sign(payload, key.getPublicKey(), {
+        return sign(payload, key.getPublicKey(), {
             expiresIn: "1d",
             algorithm: "HS256",
             keyid: header.kid,
@@ -52,9 +61,9 @@ export class AuthService {
 
     async decodeJWTToken(jwtToken: string): Promise<UserJWTData> {
         try {
-            const payload = jwt.decode(jwtToken, { complete: true }) as UserJWTData;
+            const payload = decode(jwtToken, { complete: true }) as UserJWTData;
             const secret = await this.client.getSigningKey(payload.header.kid);
-            jwt.verify(jwtToken, secret.getPublicKey(), { algorithms: ["HS256"] });
+            verify(jwtToken, secret.getPublicKey(), { algorithms: ["HS256"] });
 
             return payload;
         } catch (error) {
@@ -62,11 +71,11 @@ export class AuthService {
         }
     }
 
-    async generate2FAToken(email: string): Promise<boolean> {
+    async generate2FAToken(email: string): Promise<void> {
         const newSecret = twoFactor.generateSecret();
 
         if (newSecret == null || newSecret.secret == null) {
-            return false;
+            throw new InternalServerErrorException("Error generating 2FA secret");
         }
 
         const userDetails: UserDTO = await this.userService.fetchUserDetails(email);
@@ -79,19 +88,18 @@ export class AuthService {
         const newToken = twoFactor.generateToken(newSecret.secret);
 
         if (!newToken?.token) {
-            return false;
+            throw new InternalServerErrorException("Error generating 2FA token");
         }
 
         // Send 2FA token via Notifications microservice.
         this.notificationService.trigger2FATokenEmail(name, email, newToken.token);
-        return true;
     }
 
     async validate2FAToken(email: string, token: string): Promise<boolean> {
         const userSecret = await this.userService.getTwoFactorSecret(email);
 
         if (!userSecret) {
-            return false;
+            throw new InternalServerErrorException(`${email} does not have a 2FA secret.`);
         }
 
         const tokenValidWindow: number = this.configService.get("TOKEN_WINDOW") ?? 1;
@@ -99,7 +107,7 @@ export class AuthService {
         return results?.delta != null && results.delta == 0;
     }
 
-    async signupRequest2FAToken(email: string): Promise<boolean> {
+    async signupRequest2FAToken(email: string): Promise<void> {
         // Fetch user, check if user has already signed up before.
         const userDetails: UserDTO = await this.userService.fetchUserDetails(email);
 
@@ -108,7 +116,7 @@ export class AuthService {
         }
 
         // Generate 2FA and send 2FA token.
-        return await this.generate2FAToken(email);
+        await this.generate2FAToken(email);
     }
 
     async hostedLogin(email: string, password: string): Promise<string> {
@@ -145,5 +153,32 @@ export class AuthService {
 
         // Save particulars
         return await this.userService.updateUserDetails(userDetails);
+    }
+
+    async ssoTokenRequest(authCode: string, callbackUri: string): Promise<string> {
+        const baseUrl = this.configService.get("SSO_BASE_URL");
+        const clientId = this.configService.get("SSO_CLIENT_ID");
+        const clientSecret = this.configService.get("SSO_CLIENT_SECRET");
+
+        const requestUrl = `${baseUrl}/oauth/token`;
+
+        const requestBody = {
+            client_id: clientId,
+            client_secret: clientSecret,
+            redirect_uri: callbackUri,
+            grant_type: "authorization_code",
+            code: authCode,
+        };
+
+        return lastValueFrom(
+            this.httpService.post(requestUrl, requestBody).pipe(
+                map((res) => {
+                    return res.data.access_token;
+                }),
+                catchError((e) => {
+                    throw new HttpException(e.response.data, e.response.status);
+                }),
+            ),
+        );
     }
 }

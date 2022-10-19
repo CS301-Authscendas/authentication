@@ -1,6 +1,5 @@
-import { UserRole } from "./user.dto";
-
+// Consistent with Bank SSO JWT.
 export interface UserJSONPayload {
     id: string;
-    role: UserRole;
+    email: string;
 }

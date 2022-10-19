@@ -11,15 +11,15 @@ export enum UserRole {
 
 export interface UserDTO {
     id: string;
+    organizationId: string[];
     email: string;
+    password: string;
     firstName: string;
     lastName: string;
-    password: string;
-    phoneNumber: string;
-    birthDate: string;
-    organizationId: string[];
-    updatedAt: number;
     status: UserStatus;
+    birthDate: string;
     twoFATokenSecret: string | null;
+    phoneNumber: string;
+    updatedAt: number;
     role: UserRole;
 }

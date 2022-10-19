@@ -12,9 +12,9 @@ import {
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { Request as Req, Response as Res } from "express";
-import { UserDTO } from "../dto/user.dto";
-import { UserService } from "../user/user.service";
+import { BankSSOUser } from "src/dto/bank-sso-user.dto";
 import { TokenRequestDTO } from "../dto/token-request.dto";
+import { UserService } from "../user/user.service";
 import { AuthService } from "./auth.service";
 
 @Controller("auth")
@@ -72,7 +72,6 @@ export class AuthController {
         const authUri = `${ssoBaseUrl}/oauth/authorize?client_id=${clientId}&redirect_uri=${callbackUri}&response_type=code&scope=${scopes.join(
             "+",
         )}`;
-
         return res.redirect(authUri);
     }
 
@@ -84,13 +83,18 @@ export class AuthController {
 
         const callbackUri = encodeURI(`${req.protocol}://${req.get("host")}${req.originalUrl}`);
         const jwtToken = await this.authService.ssoTokenRequest(authCode, callbackUri);
+        const userDetails = await this.userService.fetchUserDetailsSSO(jwtToken);
+
+        // Retrieve user information from Bank SSO and update DynamoDB.
+        // Update everytime the user login as information might have changed after last login.
+        await this.authService.ssoSignup(userDetails);
 
         return res.json({ message: "SSO sign in successful!", token: jwtToken });
     }
 
     @Get("sso/fetch-user-info")
-    async fetchUserInfoSSO(@Headers("Authorization") authorizationToken: string): Promise<UserDTO> {
-        // Note: authorizationToken should include the 'Bearer' prefix.
+    async fetchUserInfoSSO(@Headers("Authorization") authorizationToken: string): Promise<BankSSOUser> {
+        // Note: authorizationToken should not include the 'Bearer' prefix.
         return await this.userService.fetchUserDetailsSSO(authorizationToken);
     }
 }

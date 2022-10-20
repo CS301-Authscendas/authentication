@@ -1,12 +1,12 @@
 export enum UserStatus {
-    Approved = "APPROVED",
-    Pending = "PENDING",
+    Approved = "approved",
+    Pending = "pending",
 }
 
 export enum UserRole {
-    Owner = "OWNER",
-    Admin = "ADMIN",
-    User = "USER",
+    Owner = "owner",
+    Admin = "admin",
+    User = "user",
 }
 
 export interface UserDTO {

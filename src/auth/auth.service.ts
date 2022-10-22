@@ -32,7 +32,6 @@ export class AuthService {
         private readonly configService: ConfigService,
     ) {
         // Verify using getKey callback
-        // Example uses https://github.com/auth0/node-jwks-rsa as a way to fetch the keys.
         this.client = new JwksClient({
             jwksUri: this.configService.get("JWKS_URI") ?? "",
             cache: true,

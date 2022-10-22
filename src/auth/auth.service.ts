@@ -182,7 +182,13 @@ export class AuthService {
             throw new UnauthorizedException("Invalid password");
         }
 
-        return await this.generateJWTToken(payload);
+        const jwtToken = await this.generateJWTToken(payload);
+
+        const name = `${userDetails.firstName} ${userDetails.lastName}`;
+
+        this.notificationService.triggerLoginAlertEmail(name, email);
+
+        return jwtToken;
     }
 
     updateUserCreationObj(
@@ -218,7 +224,7 @@ export class AuthService {
         return await this.userService.updateUserDetails(userDetails);
     }
 
-    async ssoSignup(ssoUserDetails: BankSSOUser): Promise<void> {
+    async updateSSOUserInfo(ssoUserDetails: BankSSOUser): Promise<void> {
         // Do not allow user to enter if he/she has not been seeded.
         let userDynamoInfo: UserDTO = await this.userService.fetchUserDetails(ssoUserDetails.email);
 

@@ -13,7 +13,6 @@ import { UserService } from "../user/user.service";
 
 import { HttpService } from "@nestjs/axios";
 import * as bcrypt from "bcrypt";
-import { readFileSync } from "fs";
 import { decode, JwtPayload, sign, verify } from "jsonwebtoken";
 import JwksRsa, { JSONWebKey, JwksClient } from "jwks-rsa";
 import { catchError, lastValueFrom, map } from "rxjs";
@@ -98,7 +97,7 @@ export class AuthService {
         return lastValueFrom(
             this.httpService.post(requestUrl, requestBody).pipe(
                 map((res) => {
-                    return "Bearer " + res.data.access_token;
+                    return res.data.access_token;
                 }),
                 catchError((e) => {
                     throw new HttpException(e.response.data, e.response.status);
@@ -109,8 +108,7 @@ export class AuthService {
 
     decodeSSOJWTToken(jwtToken: string): JwtPayload {
         // Read public key from PEM file.
-        const publicKey = readFileSync(`${__dirname}/Project A - rsa_public_key.pem`, "utf-8");
-
+        const publicKey = this.configService.get("SSO_PUBLIC_KEY");
         const strippedToken = jwtToken?.replace("Bearer", "")?.trim();
 
         try {

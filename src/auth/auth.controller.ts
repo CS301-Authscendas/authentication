@@ -78,7 +78,7 @@ export class AuthController {
     }
 
     @Get("sso/oauth/callback")
-    async oauthCallback(@Request() req: Req, @Response() res: Res, @Query("code") authCode: string): Promise<Res> {
+    async oauthCallback(@Request() req: Req, @Response() res: Res, @Query("code") authCode: string): Promise<void> {
         if (!authCode) {
             throw new UnauthorizedException("Consent was not provided to web application.");
         }
@@ -91,14 +91,16 @@ export class AuthController {
         // Update everytime the user login as information might have changed after last login.
         await this.authService.updateSSOUserInfo(userDetails);
 
-        // TODO: Figure out if we need to send login alert email here.
+        const redirectUri =
+            this.configService.get("NODE_ENV") === "production"
+                ? this.configService.get("PRODUCTION_URL") + "/home"
+                : "http://localhost:8000/home";
 
-        return res.json({ message: "SSO sign in successful!", token: jwtToken });
+        return res.redirect(redirectUri + `?jwtToken=${jwtToken}`);
     }
 
     @Get("sso/fetch-user-info")
     async fetchUserInfoSSO(@Headers("Authorization") authorizationToken: string): Promise<BankSSOUser> {
-        // Note: authorizationToken should not include the 'Bearer' prefix.
         return await this.userService.fetchUserDetailsSSO(authorizationToken);
     }
 }

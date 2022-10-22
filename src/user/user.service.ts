@@ -37,7 +37,7 @@ export class UserService {
             this.httpService
                 .get(`${baseUrl}/oauth/userinfo`, {
                     headers: {
-                        Authorization: token,
+                        Authorization: "Bearer " + token,
                     },
                 })
                 .pipe(

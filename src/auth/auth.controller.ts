@@ -89,7 +89,9 @@ export class AuthController {
 
         // Retrieve user information from Bank SSO and update DynamoDB.
         // Update everytime the user login as information might have changed after last login.
-        await this.authService.ssoSignup(userDetails);
+        await this.authService.updateSSOUserInfo(userDetails);
+
+        // TODO: Figure out if we need to send login alert email here.
 
         return res.json({ message: "SSO sign in successful!", token: jwtToken });
     }

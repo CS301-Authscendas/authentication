@@ -13,6 +13,8 @@ import {
 import { ConfigService } from "@nestjs/config";
 import { Request as Req, Response as Res } from "express";
 import { BankSSOUser } from "src/dto/bank-sso-user.dto";
+import { LoginCredentialsDTO } from "src/dto/login-credentials.dto";
+import { UserCreationDTO } from "src/dto/user-creation.dto";
 import { TokenRequestDTO } from "../dto/token-request.dto";
 import { UserService } from "../user/user.service";
 import { AuthService } from "./auth.service";
@@ -50,12 +52,12 @@ export class AuthController {
     }
 
     @Post("signup-details")
-    async signupDetailsUpdate(@Body() requestBody: any): Promise<boolean> {
+    async signupDetailsUpdate(@Body() requestBody: UserCreationDTO): Promise<boolean> {
         return await this.authService.signup(requestBody);
     }
 
     @Post("login")
-    async hostedLogin(@Body() requestBody: any, @Response() res: Res): Promise<Res> {
+    async hostedLogin(@Body() requestBody: LoginCredentialsDTO, @Response() res: Res): Promise<Res> {
         const { email, password } = requestBody;
 
         const token = await this.authService.hostedLogin(email, password);

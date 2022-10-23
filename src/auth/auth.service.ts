@@ -15,7 +15,6 @@ import { HttpService } from "@nestjs/axios";
 import * as bcrypt from "bcrypt";
 import { decode, JwtPayload, sign, verify } from "jsonwebtoken";
 import JwksRsa, { JSONWebKey, JwksClient } from "jwks-rsa";
-import { catchError, lastValueFrom, map } from "rxjs";
 import { BankSSOUser } from "src/dto/bank-sso-user.dto";
 import { UserCreationDTO } from "../dto/user-creation.dto";
 import { UserJSONPayload } from "../dto/user-json-payload.dto";
@@ -100,16 +99,15 @@ export class AuthService {
             code: authCode,
         };
 
-        return lastValueFrom(
-            this.httpService.post(requestUrl, requestBody).pipe(
-                map((res) => {
-                    return res.data.access_token;
-                }),
-                catchError((e) => {
-                    throw new HttpException(e.response.data, e.response.status);
-                }),
-            ),
-        );
+        try {
+            const res = await this.httpService.axiosRef.post(requestUrl, requestBody);
+            return res?.data;
+        } catch (error) {
+            if (error.code === "ECONNREFUSED") {
+                throw new InternalServerErrorException("Organization microservice error.");
+            }
+            throw new HttpException(error?.response?.data, error?.response?.status);
+        }
     }
 
     // Function to decode SSO token using using Bank SSO public key.

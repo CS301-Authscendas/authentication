@@ -1,8 +1,7 @@
 import { HttpService } from "@nestjs/axios";
-import { BadRequestException, Inject, Injectable, InternalServerErrorException } from "@nestjs/common";
+import { BadRequestException, HttpException, Inject, Injectable, InternalServerErrorException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { ClientProxy } from "@nestjs/microservices";
-import { catchError, lastValueFrom, map } from "rxjs";
 import { BankSSOUser } from "src/dto/bank-sso-user.dto";
 
 import { TokenSecretDTO } from "../dto/token-secret.dto";
@@ -29,65 +28,59 @@ export class UserService {
     // Function to fetch user details via user ID using REST API call.
     async fetchUserDetailsById(userId: string): Promise<UserDTO> {
         const baseUrl = this.configService.get("BASE_USER_URL");
-        return await lastValueFrom(
-            this.httpService.get(`${baseUrl}/id/${userId}`).pipe(
-                map((response) => {
-                    return response?.data;
-                }),
-                catchError(() => {
-                    throw new InternalServerErrorException(`Failed to fetch user details from id: ${userId}`);
-                }),
-            ),
-        );
+        try {
+            const res = await this.httpService.axiosRef.get(`${baseUrl}/id/${userId}`);
+            return res.data;
+        } catch (error) {
+            if (error.code === "ECONNREFUSED") {
+                throw new InternalServerErrorException("Organization microservice error.");
+            }
+            throw new HttpException(error?.response?.data, error?.response?.status);
+        }
     }
 
     // Function to fetch user details via email using REST API call.
     async fetchUserDetails(email: string): Promise<UserDTO> {
         const baseUrl = this.configService.get("BASE_USER_URL");
-        return await lastValueFrom(
-            this.httpService.get(`${baseUrl}/${email}`).pipe(
-                map((response) => {
-                    return response?.data;
-                }),
-                catchError(() => {
-                    throw new InternalServerErrorException(`Failed to fetch user details: ${email}`);
-                }),
-            ),
-        );
+        try {
+            const res = await this.httpService.axiosRef.get(`${baseUrl}/${email}`);
+            return res?.data;
+        } catch (error) {
+            if (error.code === "ECONNREFUSED") {
+                throw new InternalServerErrorException("Organization microservice error.");
+            }
+            throw new HttpException(error?.response?.data, error?.response?.status);
+        }
     }
 
     async fetchUserDetailsSSO(token: string): Promise<BankSSOUser> {
         const baseUrl = this.configService.get("SSO_BASE_URL");
-        return await lastValueFrom(
-            this.httpService
-                .get(`${baseUrl}/oauth/userinfo`, {
-                    headers: {
-                        Authorization: "Bearer " + token,
-                    },
-                })
-                .pipe(
-                    map((response) => {
-                        return response?.data;
-                    }),
-                    catchError(() => {
-                        throw new InternalServerErrorException(`Failed to fetch SSO user`);
-                    }),
-                ),
-        );
+        try {
+            const res = await this.httpService.axiosRef.get(`${baseUrl}/oauth/userinfo`, {
+                headers: {
+                    Authorization: "Bearer " + token,
+                },
+            });
+            return res?.data;
+        } catch (error) {
+            if (error.code === "ECONNREFUSED") {
+                throw new InternalServerErrorException("Error connecting to Bank SSO.");
+            }
+            throw new HttpException(error?.response?.data, error?.response?.status);
+        }
     }
 
     async updateUserDetails(userObj: UserDTO): Promise<boolean> {
         const baseUrl = this.configService.get("BASE_USER_URL");
-        return await lastValueFrom(
-            this.httpService.put(baseUrl, userObj).pipe(
-                map((response) => {
-                    return response?.data;
-                }),
-                catchError(() => {
-                    throw new InternalServerErrorException(`Failed to update user details: ${userObj.email}`);
-                }),
-            ),
-        );
+        try {
+            const res = await this.httpService.axiosRef.put(baseUrl, userObj);
+            return res?.data;
+        } catch (error) {
+            if (error.code === "ECONNREFUSED") {
+                throw new InternalServerErrorException("Organization microservice error.");
+            }
+            throw new HttpException(error?.response?.data, error?.response?.status);
+        }
     }
 
     saveTwoFactorSecret(email: string, twoFactorSecret: string): void {

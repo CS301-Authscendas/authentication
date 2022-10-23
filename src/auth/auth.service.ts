@@ -38,15 +38,18 @@ export class AuthService {
         });
     }
 
+    // Function to hash plain text password using bcrypt.
     async hashPassword(password: string): Promise<string> {
         const salt = await bcrypt.genSalt(10);
         return await bcrypt.hash(password, salt);
     }
 
+    // Function to compare plain text password and hashed password using bcrypt.
     private async comparePassword(hashedPassword: string, unhashedPassword: string): Promise<boolean> {
         return await bcrypt.compare(unhashedPassword, hashedPassword);
     }
 
+    // Function to generate JWT Token, encoding a JSON payload and key ID from JWKs.
     private async generateJWTToken(payload: UserJSONPayload): Promise<string> {
         const keys: JSONWebKey[] = (await this.client.getKeys()) as JSONWebKey[];
         const header = keys[Math.round(Math.random() * (keys.length - 1))];
@@ -62,10 +65,12 @@ export class AuthService {
         );
     }
 
+    // Function to decode JWT Token.
     decodeJWTToken(jwtToken: string): UserJWTData {
         return decode(jwtToken, { complete: true }) as UserJWTData;
     }
 
+    // Function to authenticate JWT Token by verifying with public key in JWKs.
     async authenticateJWTToken(jwtToken: string): Promise<UserJWTData> {
         const token = jwtToken?.replace("Bearer", "")?.trim();
         try {
@@ -79,6 +84,7 @@ export class AuthService {
         }
     }
 
+    // Function to request new JWT Token from Bank SSO.
     async ssoTokenRequest(authCode: string, callbackUri: string): Promise<string> {
         const baseUrl = this.configService.get("SSO_BASE_URL");
         const clientId = this.configService.get("SSO_CLIENT_ID");
@@ -106,6 +112,7 @@ export class AuthService {
         );
     }
 
+    // Function to decode SSO token using using Bank SSO public key.
     decodeSSOJWTToken(jwtToken: string): JwtPayload {
         // Read public key from PEM file.
         const publicKey = this.configService.get("SSO_PUBLIC_KEY");
@@ -118,6 +125,47 @@ export class AuthService {
         }
     }
 
+    // Function to save new user information and update status to 'APPROVED'.
+    async signup(userCreationObj: UserCreationDTO): Promise<boolean> {
+        const email = userCreationObj.email;
+
+        let userDetails: UserDTO = await this.userService.fetchUserDetails(email);
+
+        if (userDetails.status === UserStatus.Approved) {
+            throw new BadRequestException("User has already signed up!");
+        }
+
+        // Hash the plain text password
+        userDetails.password = await this.hashPassword(userCreationObj.password);
+
+        // Update particulars
+        const { firstName, lastName, phoneNumber, birthDate } = userCreationObj;
+        userDetails = this.updateUserCreationObj(userDetails, firstName, lastName, phoneNumber, birthDate);
+
+        // Save particulars
+        return await this.userService.updateUserDetails(userDetails);
+    }
+
+    // Function to validate user credentials and request for a new 2FA token for user.
+    async hostedLogin(email: string, password: string): Promise<boolean> {
+        const userDetails: UserDTO = await this.userService.fetchUserDetails(email);
+
+        if (userDetails.status !== UserStatus.Approved) {
+            throw new UnauthorizedException("User has not signed up!");
+        }
+
+        const hashedPassword: string = userDetails.password;
+        const success = await this.comparePassword(hashedPassword, password);
+
+        if (!success) {
+            throw new UnauthorizedException("Invalid password");
+        }
+
+        await this.generate2FAToken(userDetails.email);
+        return true;
+    }
+
+    // Function to validate user credentials and request for a new 2FA token for user.
     async generate2FAToken(email: string): Promise<void> {
         const newSecret = twoFactor.generateSecret();
 
@@ -142,8 +190,10 @@ export class AuthService {
         this.notificationService.trigger2FATokenEmail(name, email, newToken.token);
     }
 
-    async validate2FAToken(email: string, token: string): Promise<boolean> {
-        const userSecret = await this.userService.getTwoFactorSecret(email);
+    // Function to validate input 2FA token using secret generated for user and return a new JWT token.
+    async validate2FAToken(email: string, token: string): Promise<string> {
+        const userDetails: UserDTO = await this.userService.fetchUserDetails(email);
+        const userSecret = userDetails.twoFATokenSecret;
 
         if (!userSecret) {
             throw new InternalServerErrorException(`${email} does not have a 2FA secret.`);
@@ -151,44 +201,26 @@ export class AuthService {
 
         const tokenValidWindow: number = this.configService.get("TOKEN_WINDOW") ?? 1;
         const results = twoFactor.verifyToken(userSecret, token, tokenValidWindow);
-        return results?.delta != null && results.delta == 0;
-    }
+        if (results?.delta != null && results.delta == 0) {
+            // If 2FA token is valid, generate JWT Token and send login notification.
+            const payload: UserJSONPayload = {
+                id: userDetails.id,
+                email: userDetails.email,
+            };
 
-    async signupRequest2FAToken(email: string): Promise<void> {
-        // Fetch user, check if user has already signed up before.
-        const userDetails: UserDTO = await this.userService.fetchUserDetails(email);
+            const jwtToken = await this.generateJWTToken(payload);
 
-        if (userDetails.status === UserStatus.Approved) {
-            throw new BadRequestException("User has already signed up");
+            const name = `${userDetails.firstName} ${userDetails.lastName}`;
+
+            this.notificationService.triggerLoginAlertEmail(name, email);
+
+            return jwtToken;
         }
 
-        // Generate 2FA and send 2FA token.
-        await this.generate2FAToken(email);
+        return "";
     }
 
-    async hostedLogin(email: string, password: string): Promise<string> {
-        const userDetails: UserDTO = await this.userService.fetchUserDetails(email);
-        const hashedPassword: string = userDetails.password;
-        const success = await this.comparePassword(hashedPassword, password);
-
-        const payload: UserJSONPayload = {
-            id: userDetails.id,
-            email: userDetails.email,
-        };
-
-        if (!success) {
-            throw new UnauthorizedException("Invalid password");
-        }
-
-        const jwtToken = await this.generateJWTToken(payload);
-
-        const name = `${userDetails.firstName} ${userDetails.lastName}`;
-
-        this.notificationService.triggerLoginAlertEmail(name, email);
-
-        return jwtToken;
-    }
-
+    // Function to update user object.
     updateUserCreationObj(
         userDetails: UserDTO,
         firstName: string,
@@ -206,22 +238,7 @@ export class AuthService {
         return userDetails;
     }
 
-    async signup(userCreationObj: UserCreationDTO): Promise<boolean> {
-        const email = userCreationObj.email;
-
-        let userDetails: UserDTO = await this.userService.fetchUserDetails(email);
-
-        // Hash the plain text password
-        userDetails.password = await this.hashPassword(userCreationObj.password);
-
-        // Update particulars
-        const { firstName, lastName, phoneNumber, birthDate } = userCreationObj;
-        userDetails = this.updateUserCreationObj(userDetails, firstName, lastName, phoneNumber, birthDate);
-
-        // Save particulars
-        return await this.userService.updateUserDetails(userDetails);
-    }
-
+    // Function to retrieve update DynamoDB user information with SSO user details.
     async updateSSOUserInfo(ssoUserDetails: BankSSOUser): Promise<void> {
         // Do not allow user to enter if he/she has not been seeded.
         let userDynamoInfo: UserDTO = await this.userService.fetchUserDetails(ssoUserDetails.email);

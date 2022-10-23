@@ -7,6 +7,7 @@ import { TokenEmailParamsDTO } from "../dto/token-email-params.dto";
 export class NotificationService {
     constructor(@Inject("NOTIFICATION_RMQ_SERVICE") private client: ClientProxy) {}
 
+    // Function to trigger notification service to send 2FA token email to user.
     trigger2FATokenEmail(username: string, email: string, token: string): void {
         const dataObj: TokenEmailParamsDTO = {
             name: username,
@@ -17,6 +18,7 @@ export class NotificationService {
         this.client.send("send_2FA_token_email", dataObj).subscribe();
     }
 
+    // Function to trigger notification service to send new login alert email to user.
     triggerLoginAlertEmail(username: string, email: string): void {
         const dataObj: LoginEmailParamsDTO = {
             name: username,

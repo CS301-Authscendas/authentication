@@ -16,6 +16,7 @@ async function bootstrap() {
     app.connectMicroservice(mqService.getOptions("auth"));
 
     await app.startAllMicroservices();
+    app.enableCors();
     await app.listen(configService.get("PORT") ?? 3001);
 }
 bootstrap();

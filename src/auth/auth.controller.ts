@@ -27,31 +27,12 @@ export class AuthController {
         private readonly userService: UserService,
     ) {}
 
-    @Get("generate-2fa-token/:email")
-    async send2FAToken(@Param("email") email: string, @Response() res: Res): Promise<Res> {
-        await this.authService.generate2FAToken(email);
-
-        return res.send(`Successfully sent 2FA token to ${email}`);
+    @Get("user-signup-status/:id")
+    async magicLinkUserSignUpCheck(@Param("id") userId: string): Promise<string> {
+        return await this.userService.fetchEmailMagicLink(userId);
     }
 
-    @Post("validate-2fa-token")
-    async validate2FAToken(@Body() requestBody: TokenRequestDTO, @Response() res: Res): Promise<Res> {
-        const success = await this.authService.validate2FAToken(requestBody.email, requestBody.token);
-
-        if (success) {
-            return res.send("Successfully validated 2FA token");
-        }
-
-        throw new UnauthorizedException("Invalid or expired 2FA token.");
-    }
-
-    @Get("signup-request-2fa-token/:email")
-    async signup(@Param("email") email: string, @Response() res: Res): Promise<Res> {
-        await this.authService.signupRequest2FAToken(email);
-        return res.send(`Successfully sent 2FA token to ${email}`);
-    }
-
-    @Post("signup-details")
+    @Post("signup")
     async signupDetailsUpdate(@Body() requestBody: UserCreationDTO): Promise<boolean> {
         return await this.authService.signup(requestBody);
     }
@@ -62,7 +43,28 @@ export class AuthController {
 
         const token = await this.authService.hostedLogin(email, password);
 
-        return res.set({ Authorization: token }).json({ message: "Successfully logged in!" });
+        return res.json({
+            message: "Successfully logged in!",
+            token: token,
+        });
+    }
+
+    @Get("generate-2fa-token/:email")
+    async send2FAToken(@Param("email") email: string, @Response() res: Res): Promise<Res> {
+        await this.authService.generate2FAToken(email);
+
+        return res.send(`Successfully sent 2FA token to ${email}`);
+    }
+
+    @Post("validate-2fa-token")
+    async validate2FAToken(@Body() requestBody: TokenRequestDTO, @Response() res: Res): Promise<Res> {
+        const jwtToken = await this.authService.validate2FAToken(requestBody.email, requestBody.token);
+
+        if (jwtToken != "") {
+            return res.json({ token: jwtToken });
+        }
+
+        throw new UnauthorizedException("Invalid or expired 2FA token.");
     }
 
     @Get("sso/login")

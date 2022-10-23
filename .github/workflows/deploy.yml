@@ -49,10 +49,56 @@ jobs:
         uses: aws-actions/amazon-ecr-login@v1
 
       - name: Build, tag, and push image to Amazon ECR
+        id: build-image
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          ECR_REPOSITORY: authentication
-          IMAGE_TAG: authentication_api_image
+          ECR_REPOSITORY: ${{ format('{0}-ecr-authentication', secrets.APP_NAME) }}
+          IMAGE_TAG: ${{ format('{0}-ecr-authentication-latest', secrets.APP_NAME) }}
         run: |
           docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          echo "::set-output name=image::$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+
+      - name: Download Task Definition for Availability Zone 1a
+        env:
+          TASK_DEFINITION: ${{ format('{0}-task-authentication-1a', secrets.APP_NAME) }}
+        run: |
+          aws ecs describe-task-definition --task-definition $TASK_DEFINITION --query taskDefinition > task-definition.json
+
+      - name: Fill in new Image ID for Amazon ECS Task Definition in Availability Zone 1a
+        id: task-definition-1a
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: task-definition.json
+          container-name: ${{ format('{0}-authentication-1a', secrets.APP_NAME) }}
+          image: ${{ steps.build-image.outputs.image }}
+
+      - name: Deploy Amazon ECS Task Definition for Availability Zone 1a
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+        with:
+          task-definition: ${{ steps.task-definition-1a.outputs.task-definition }}
+          service: ${{ format('{0}-ecs-service-authentication-1a', secrets.APP_NAME) }}
+          cluster: ${{ format('{0}-ecs-authentication-1a', secrets.APP_NAME) }}
+          wait-for-service-stability: true
+
+      - name: Download Task Definition for Availability Zone 1b
+        env:
+          TASK_DEFINITION: ${{ format('{0}-task-authentication-1b', secrets.APP_NAME) }}
+        run: |
+          aws ecs describe-task-definition --task-definition $TASK_DEFINITION --query taskDefinition > task-definition.json
+
+      - name: Fill in new Image ID for Amazon ECS Task Definition in Availability Zone 1b
+        id: task-definition-1b
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: task-definition.json
+          container-name: ${{ format('{0}-authentication-1b', secrets.APP_NAME) }}
+          image: ${{ steps.build-image.outputs.image }}
+
+      - name: Deploy Amazon ECS Task Definition for Availability Zone 1b
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+        with:
+          task-definition: ${{ steps.task-definition-1b.outputs.task-definition }}
+          service: ${{ format('{0}-ecs-service-authentication-1b', secrets.APP_NAME) }}
+          cluster: ${{ format('{0}-ecs-authentication-1b', secrets.APP_NAME) }}
+          wait-for-service-stability: true

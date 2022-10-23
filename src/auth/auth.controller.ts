@@ -12,9 +12,9 @@ import {
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { Request as Req, Response as Res } from "express";
-import { BankSSOUser } from "src/dto/bank-sso-user.dto";
-import { LoginCredentialsDTO } from "src/dto/login-credentials.dto";
-import { UserCreationDTO } from "src/dto/user-creation.dto";
+import { BankSSOUser } from "../dto/bank-sso-user.dto";
+import { LoginCredentialsDTO } from "../dto/login-credentials.dto";
+import { UserCreationDTO } from "../dto/user-creation.dto";
 import { TokenRequestDTO } from "../dto/token-request.dto";
 import { UserService } from "../user/user.service";
 import { AuthService } from "./auth.service";

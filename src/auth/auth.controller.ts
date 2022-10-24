@@ -15,7 +15,7 @@ import { ConfigService } from "@nestjs/config";
 import { JwtService } from "@nestjs/jwt";
 import { AuthGuard } from "@nestjs/passport";
 import { Request as Req, Response as Res } from "express";
-import { UserDTO } from "src/dto/user.dto";
+import { UserDTO } from "../dto/user.dto";
 import { BankSSOUser } from "../dto/bank-sso-user.dto";
 import { TokenRequestDTO } from "../dto/token-request.dto";
 import { UserCreationDTO } from "../dto/user-creation.dto";

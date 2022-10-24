@@ -1,6 +1,6 @@
 import { Inject, Injectable } from "@nestjs/common";
 import { ClientProxy } from "@nestjs/microservices";
-import { LoginEmailParamsDTO } from "src/dto/login-email-params.dto";
+import { LoginEmailParamsDTO } from "../dto/login-email-params.dto";
 import { TokenEmailParamsDTO } from "../dto/token-email-params.dto";
 
 @Injectable()

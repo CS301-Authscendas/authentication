@@ -15,7 +15,7 @@ import { HttpService } from "@nestjs/axios";
 import { JwtService } from "@nestjs/jwt";
 import * as bcrypt from "bcrypt";
 import { decode, verify } from "jsonwebtoken";
-import { BankSSOUser } from "src/dto/bank-sso-user.dto";
+import { BankSSOUser } from "../dto/bank-sso-user.dto";
 import { UserCreationDTO } from "../dto/user-creation.dto";
 import { UserJSONPayload } from "../dto/user-json-payload.dto";
 import { UserJWTData } from "../dto/user-jwt-data.dto";

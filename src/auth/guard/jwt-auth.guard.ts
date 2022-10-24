@@ -1,11 +1,11 @@
 import { ExecutionContext, Injectable, UnauthorizedException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { AuthGuard } from "@nestjs/passport";
-import { BankSSOUser } from "src/dto/bank-sso-user.dto";
-import { UserJSONPayload } from "src/dto/user-json-payload.dto";
-import { UserJWTData } from "src/dto/user-jwt-data.dto";
-import { UserDTO } from "src/dto/user.dto";
-import { UserService } from "src/user/user.service";
+import { BankSSOUser } from "../../dto/bank-sso-user.dto";
+import { UserJSONPayload } from "../../dto/user-json-payload.dto";
+import { UserJWTData } from "../../dto/user-jwt-data.dto";
+import { UserDTO } from "../../dto/user.dto";
+import { UserService } from "../../user/user.service";
 import { AuthService } from "../auth.service";
 
 @Injectable()

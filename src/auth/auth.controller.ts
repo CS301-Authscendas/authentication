@@ -9,13 +9,16 @@ import {
     Request,
     Response,
     UnauthorizedException,
+    UseGuards,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
+import { JwtService } from "@nestjs/jwt";
+import { AuthGuard } from "@nestjs/passport";
 import { Request as Req, Response as Res } from "express";
+import { UserDTO } from "src/dto/user.dto";
 import { BankSSOUser } from "../dto/bank-sso-user.dto";
-import { LoginCredentialsDTO } from "../dto/login-credentials.dto";
-import { UserCreationDTO } from "../dto/user-creation.dto";
 import { TokenRequestDTO } from "../dto/token-request.dto";
+import { UserCreationDTO } from "../dto/user-creation.dto";
 import { UserService } from "../user/user.service";
 import { AuthService } from "./auth.service";
 
@@ -25,6 +28,7 @@ export class AuthController {
         private readonly authService: AuthService,
         private readonly configService: ConfigService,
         private readonly userService: UserService,
+        private readonly jwtService: JwtService,
     ) {}
 
     @Get("user-signup-status/:id")
@@ -37,15 +41,16 @@ export class AuthController {
         return await this.authService.signup(requestBody);
     }
 
+    @UseGuards(AuthGuard("login"))
     @Post("login")
-    async hostedLogin(@Body() requestBody: LoginCredentialsDTO, @Response() res: Res): Promise<Res> {
-        const { email, password } = requestBody;
+    async hostedLogin(@Request() req: Req, @Response() res: Res): Promise<Res> {
+        const user: UserDTO = req.user as UserDTO;
+        const email: string = user.email;
 
-        const token = await this.authService.hostedLogin(email, password);
+        await this.authService.generate2FAToken(email);
 
         return res.json({
-            message: "Successfully logged in!",
-            token: token,
+            message: `2FA token has been sent to ${email}!`,
         });
     }
 
@@ -58,10 +63,11 @@ export class AuthController {
 
     @Post("validate-2fa-token")
     async validate2FAToken(@Body() requestBody: TokenRequestDTO, @Response() res: Res): Promise<Res> {
-        const jwtToken = await this.authService.validate2FAToken(requestBody.email, requestBody.token);
+        const { email, token } = requestBody;
+        const success: boolean = await this.authService.validate2FAToken(email, token);
 
-        if (jwtToken != "") {
-            return res.json({ token: jwtToken });
+        if (success) {
+            return res.json(await this.authService.generateJWTToken({ email: email }));
         }
 
         throw new UnauthorizedException("Invalid or expired 2FA token.");

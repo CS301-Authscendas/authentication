@@ -2,7 +2,7 @@ import { HttpService } from "@nestjs/axios";
 import { BadRequestException, HttpException, Inject, Injectable, InternalServerErrorException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { ClientProxy } from "@nestjs/microservices";
-import { BankSSOUser } from "src/dto/bank-sso-user.dto";
+import { BankSSOUser } from "../dto/bank-sso-user.dto";
 
 import { TokenSecretDTO } from "../dto/token-secret.dto";
 import { UserDTO, UserRole, UserStatus } from "../dto/user.dto";

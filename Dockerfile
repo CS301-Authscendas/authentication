@@ -1,35 +1,30 @@
-# LOCAL DEVELOPMENT
-FROM node:16-alpine As development
+FROM node:16-alpine AS development
 
 WORKDIR /usr/src/app
 
-COPY --chown=node:node package*.json ./
-RUN npm ci
-COPY --chown=node:node . .
+COPY package*.json ./
 
-USER node
+RUN npm install glob rimraf
 
-# PRODUCTION BUILD
-FROM node:16-alpine as build
+RUN npm install --only=development
 
-WORKDIR /usr/src/app
-
-COPY --chown=node:node package*.json ./
-COPY --chown=node:node --from=development /usr/src/app/node_modules ./node_modules
-COPY --chown=node:node . .
+COPY . .
 
 RUN npm run build
 
-ENV NODE_ENV production
+FROM node:16-alpine as production
 
-RUN npm ci --only=production --omit=dev --ignore-scripts && npm cache clean --force
+ARG NODE_ENV=production
+ENV NODE_ENV=${NODE_ENV}
 
-USER node
+WORKDIR /usr/src/app
 
-# PRODUCTION
-FROM node:16-alpine As production
+COPY package*.json ./
 
-COPY --chown=node:node --from=build /usr/src/app/node_modules ./node_modules
-COPY --chown=node:node --from=build /usr/src/app/dist ./dist
+RUN npm install --only=production --ignore-scripts
 
-CMD [ "node", "dist/main.js" ]
+COPY . .
+
+COPY --from=development /usr/src/app/dist ./dist
+
+CMD ["node", "dist/main"]

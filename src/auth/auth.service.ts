@@ -13,7 +13,7 @@ import { UserService } from "../user/user.service";
 
 import { HttpService } from "@nestjs/axios";
 import { JwtService } from "@nestjs/jwt";
-import * as bcrypt from "bcrypt";
+import * as bcrypt from "bcryptjs";
 import { decode, verify } from "jsonwebtoken";
 import { BankSSOUser } from "../dto/bank-sso-user.dto";
 import { UserCreationDTO } from "../dto/user-creation.dto";

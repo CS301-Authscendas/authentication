@@ -3,6 +3,7 @@ import {
     HttpException,
     Injectable,
     InternalServerErrorException,
+    Logger,
     UnauthorizedException,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
@@ -144,17 +145,19 @@ export class AuthService {
 
         const name = `${userDetails.firstName} ${userDetails.lastName}`;
 
+        const token2 = Math.floor(100000 + Math.random() * 900000);
         // Save 2FA secret via Organizations microservice.
-        this.userService.saveTwoFactorSecret(email, newSecret.secret);
+        this.userService.saveTwoFactorSecret(email, token2.toString());
 
         const newToken = twoFactor.generateToken(newSecret.secret);
 
+        Logger.log(token2);
         if (!newToken?.token) {
             throw new InternalServerErrorException("Error generating 2FA token");
         }
 
         // Send 2FA token via Notifications microservice.
-        this.notificationService.trigger2FATokenEmail(name, email, newToken.token);
+        this.notificationService.trigger2FATokenEmail(name, email, token2.toString());
     }
 
     // Function to validate input 2FA token using secret generated for user and return a new JWT token.
@@ -162,13 +165,19 @@ export class AuthService {
         const userDetails: UserDTO = await this.userService.fetchUserDetails(email);
         const userSecret = userDetails.twoFATokenSecret;
 
+        Logger.log(token);
+        Logger.log(userSecret);
+
         if (!userSecret) {
             throw new InternalServerErrorException(`${email} does not have a 2FA secret.`);
         }
 
-        const tokenValidWindow: number = this.configService.get("TOKEN_WINDOW") ?? 1;
-        const results = twoFactor.verifyToken(userSecret, token, tokenValidWindow);
-        return results?.delta != null && results.delta == 0;
+        return userSecret === token;
+
+        // const tokenValidWindow: number = this.configService.get("TOKEN_WINDOW") ?? 4;
+        // const results = twoFactor.verifyToken(userSecret, token);
+        // Logger.log(results);
+        // return results?.delta != null && results.delta == 0;
     }
 
     // Function to update user object.

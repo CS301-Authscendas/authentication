@@ -43,7 +43,7 @@ export class UserService {
     async fetchUserDetails(email: string): Promise<UserDTO> {
         const baseUrl = this.configService.get("BASE_USER_URL");
         try {
-            const res = await this.httpService.axiosRef.get(`${baseUrl}/${email}`);
+            const res = await this.httpService.axiosRef.get(`${baseUrl}/full/${email}`);
             return res?.data;
         } catch (error) {
             if (error.code === "ECONNREFUSED") {

@@ -33,8 +33,9 @@ export class AuthController {
     }
 
     @Post("signup")
-    async signupDetailsUpdate(@Body() requestBody: UserCreationDTO): Promise<boolean> {
-        return await this.authService.signup(requestBody);
+    async signupDetailsUpdate(@Body() requestBody: UserCreationDTO, @Response() res: Res): Promise<Res> {
+        await this.authService.signup(requestBody);
+        return res.status(200).send({ message: "Success" });
     }
 
     @UseGuards(AuthGuard("login"))

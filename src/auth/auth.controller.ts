@@ -2,7 +2,6 @@ import {
     Body,
     Controller,
     Get,
-    Headers,
     Param,
     Post,
     Query,
@@ -12,13 +11,11 @@ import {
     UseGuards,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { JwtService } from "@nestjs/jwt";
 import { AuthGuard } from "@nestjs/passport";
 import { Request as Req, Response as Res } from "express";
-import { UserDTO } from "../dto/user.dto";
-import { BankSSOUser } from "../dto/bank-sso-user.dto";
 import { TokenRequestDTO } from "../dto/token-request.dto";
 import { UserCreationDTO } from "../dto/user-creation.dto";
+import { UserDTO } from "../dto/user.dto";
 import { UserService } from "../user/user.service";
 import { AuthService } from "./auth.service";
 
@@ -28,7 +25,6 @@ export class AuthController {
         private readonly authService: AuthService,
         private readonly configService: ConfigService,
         private readonly userService: UserService,
-        private readonly jwtService: JwtService,
     ) {}
 
     @Get("user-signup-status/:id")
@@ -85,7 +81,7 @@ export class AuthController {
         return res.redirect(authUri);
     }
 
-    @Get("sso/oauth/callback")
+    @Get("sso/callback")
     async oauthCallback(@Request() req: Req, @Response() res: Res, @Query("code") authCode: string): Promise<void> {
         if (!authCode) {
             throw new UnauthorizedException("Consent was not provided to web application.");
@@ -105,10 +101,5 @@ export class AuthController {
                 : "http://localhost:8000/home";
 
         return res.redirect(redirectUri + `?jwtToken=${jwtToken}`);
-    }
-
-    @Get("sso/fetch-user-info")
-    async fetchUserInfoSSO(@Headers("Authorization") authorizationToken: string): Promise<BankSSOUser> {
-        return await this.userService.fetchUserDetailsSSO(authorizationToken);
     }
 }

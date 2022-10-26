@@ -7,7 +7,6 @@ import { NotificationModule } from "../notification/notification.module";
 import { UserModule } from "../user/user.module";
 import { AuthController } from "./auth.controller";
 import { AuthService } from "./auth.service";
-import { JWTStrategy } from "./strategy/jwt.strategy";
 import { LoginStrategy } from "./strategy/login.strategy";
 
 describe("AuthService", () => {
@@ -37,7 +36,7 @@ describe("AuthService", () => {
                 }),
             ],
             controllers: [AuthController],
-            providers: [AuthService, LoginStrategy, JWTStrategy],
+            providers: [AuthService, LoginStrategy],
         }).compile();
 
         service = module.get<AuthService>(AuthService);

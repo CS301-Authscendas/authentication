@@ -7,7 +7,6 @@ import { NotificationModule } from "../notification/notification.module";
 import { UserModule } from "../user/user.module";
 import { AuthController } from "./auth.controller";
 import { AuthService } from "./auth.service";
-import { JWTStrategy } from "./strategy/jwt.strategy";
 import { LoginStrategy } from "./strategy/login.strategy";
 
 @Module({
@@ -33,6 +32,6 @@ import { LoginStrategy } from "./strategy/login.strategy";
         }),
     ],
     controllers: [AuthController],
-    providers: [AuthService, LoginStrategy, JWTStrategy],
+    providers: [AuthService, LoginStrategy],
 })
 export class AuthModule {}

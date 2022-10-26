@@ -64,10 +64,21 @@ export class AuthController {
         const success: boolean = await this.authService.validate2FAToken(email, token);
 
         if (success) {
-            return res.json(await this.authService.generateJWTToken({ email: email }));
+            return res.json({ token: await this.authService.generateJWTToken({ email: email }) });
         }
 
         throw new UnauthorizedException("Invalid or expired 2FA token.");
+    }
+
+    @Get("generate-jwt-token/:email")
+    async generateJWTToken(@Param("email") email: string, @Response() res: Res) {
+        return res.json({ token: await this.authService.generateJWTToken({ email: email }) });
+    }
+
+    @Post("validate-jwt-token")
+    async validateJWTToken(@Body() requestBody: { token: string }, @Response() res: Res): Promise<Res> {
+        const { token } = requestBody;
+        return res.json({ token: await this.authService.checkJWTValidity(token) });
     }
 
     @Get("sso/login")

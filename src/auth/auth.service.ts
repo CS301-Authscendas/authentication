@@ -7,7 +7,7 @@ import {
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import * as twoFactor from "node-2fa";
-import { UserDTO, UserStatus } from "../dto/user.dto";
+import { TwoFATokenObj, UserDTO, UserStatus } from "../dto/user.dto";
 import { NotificationService } from "../notification/notification.service";
 import { UserService } from "../user/user.service";
 
@@ -22,13 +22,22 @@ import { UserJWTData } from "../dto/user-jwt-data.dto";
 
 @Injectable()
 export class AuthService {
+    private twoFaTokenWindow: number;
     constructor(
         private readonly httpService: HttpService,
         private readonly userService: UserService,
         private readonly notificationService: NotificationService,
         private readonly configService: ConfigService,
         private readonly jwtService: JwtService,
-    ) {}
+    ) {
+        const tokenWindow = configService.get("2FA-TOKEN-WINDOW_SECONDS");
+
+        if (!tokenWindow) {
+            throw new InternalServerErrorException("2FA-TOKEN-WINDOW_SECONDS has not been set!");
+        }
+
+        this.twoFaTokenWindow = parseInt(tokenWindow);
+    }
 
     // Function to hash plain text password using bcrypt.
     async hashPassword(password: string): Promise<string> {
@@ -159,6 +168,11 @@ export class AuthService {
         return true;
     }
 
+    getCurrentSecondsFromEpoch(): number {
+        const now = new Date();
+        return Math.round(now.getTime() / 1000);
+    }
+
     // Function to validate user credentials and request for a new 2FA token for user.
     async generate2FAToken(email: string): Promise<void> {
         const newSecret = twoFactor.generateSecret();
@@ -171,33 +185,36 @@ export class AuthService {
 
         const name = `${userDetails.firstName} ${userDetails.lastName}`;
 
-        const token2 = Math.floor(100000 + Math.random() * 900000);
+        const token: string = Math.floor(100000 + Math.random() * 900000).toString();
+
+        const twoFaObj: TwoFATokenObj = {
+            token: token,
+            creationDate: this.getCurrentSecondsFromEpoch(),
+        };
 
         // Save 2FA secret via Organizations microservice.
-        this.userService.saveTwoFactorSecret(email, token2.toString());
-
-        const newToken = twoFactor.generateToken(newSecret.secret);
-
-        if (!newToken?.token) {
-            throw new InternalServerErrorException("Error generating 2FA token");
-        }
+        this.userService.saveTwoFactorSecret(email, twoFaObj);
 
         // Send 2FA token via Notifications microservice.
-        this.notificationService.trigger2FATokenEmail(name, email, token2.toString());
+        this.notificationService.trigger2FATokenEmail(name, email, token);
     }
 
     // Function to validate input 2FA token using secret generated for user and return a new JWT token.
-    async validate2FAToken(email: string, token: string): Promise<boolean> {
+    async validate2FAToken(email: string, userToken: string): Promise<boolean> {
         const userDetails: UserDTO = await this.userService.fetchUserDetails(email);
-        const userSecret = userDetails.twoFATokenSecret;
+        const tokenObj: TwoFATokenObj | null = userDetails.twoFactorObj;
 
-        this.userService.clearTwoFactorSecret(email);
-
-        if (!userSecret) {
+        if (!tokenObj) {
             throw new InternalServerErrorException(`${email} does not have a 2FA secret.`);
         }
 
-        return userSecret === token;
+        const { token, creationDate } = tokenObj;
+        if (token === userToken && creationDate + this.twoFaTokenWindow <= this.getCurrentSecondsFromEpoch()) {
+            this.userService.clearTwoFactorSecret(email);
+            return true;
+        }
+
+        return false;
     }
 
     // Function to update user object.

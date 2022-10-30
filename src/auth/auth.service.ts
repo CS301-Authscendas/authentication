@@ -3,6 +3,7 @@ import {
     HttpException,
     Injectable,
     InternalServerErrorException,
+    Logger,
     UnauthorizedException,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
@@ -202,13 +203,14 @@ export class AuthService {
     // Function to validate input 2FA token using secret generated for user and return a new JWT token.
     async validate2FAToken(email: string, userToken: string): Promise<boolean> {
         const userDetails: UserDTO = await this.userService.fetchUserDetails(email);
-        const tokenObj: TwoFATokenObj | null = userDetails.twoFactorObj;
+        const tokenObj: TwoFATokenObj | null = userDetails.twoFATokenObj;
 
         if (!tokenObj) {
             throw new InternalServerErrorException(`${email} does not have a 2FA secret.`);
         }
 
         const { token, creationDate } = tokenObj;
+        Logger.log(`token1: ${token}, token2: ${userToken}`);
         if (token === userToken && creationDate + this.twoFaTokenWindow <= this.getCurrentSecondsFromEpoch()) {
             this.userService.clearTwoFactorSecret(email);
             return true;

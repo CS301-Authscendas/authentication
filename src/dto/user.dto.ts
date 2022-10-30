@@ -53,7 +53,7 @@ export class UserDTO {
     @IsString()
     birthDate: string;
 
-    twoFactorObj: TwoFATokenObj | null;
+    twoFATokenObj: TwoFATokenObj | null;
 
     @IsString()
     phoneNumber: string;

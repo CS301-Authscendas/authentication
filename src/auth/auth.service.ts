@@ -211,7 +211,9 @@ export class AuthService {
 
         const { token, creationDate } = tokenObj;
         Logger.log(`token1: ${token}, token2: ${userToken}`);
-        if (token === userToken && creationDate + this.twoFaTokenWindow <= this.getCurrentSecondsFromEpoch()) {
+        Logger.log(creationDate + this.twoFaTokenWindow <= this.getCurrentSecondsFromEpoch());
+        Logger.log(`${creationDate}, ${this.twoFaTokenWindow}, ${this.getCurrentSecondsFromEpoch()}`);
+        if (token === userToken && creationDate + this.twoFaTokenWindow >= this.getCurrentSecondsFromEpoch()) {
             this.userService.clearTwoFactorSecret(email);
             return true;
         }

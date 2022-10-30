@@ -22,10 +22,7 @@ export class UserService {
         private readonly httpService: HttpService,
         configService: ConfigService,
     ) {
-        this.BASE_URL =
-            configService.get("NODE_ENV") === "production"
-                ? configService.get("PRODUCTION_ORGANIZATION_URL") ?? ""
-                : configService.get("BASE_ORGANIZATION_URL") ?? "";
+        this.BASE_URL = configService.get("BASE_USER_URL") ?? "";
         Logger.log("UserService --- " + this.BASE_URL);
     }
 

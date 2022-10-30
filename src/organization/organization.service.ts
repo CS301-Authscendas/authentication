@@ -25,10 +25,11 @@ export class OrganizationService {
     async checkUserLoginMethod(orgId: string, loginMethod: LoginMethodEnum): Promise<boolean> {
         const organizationDetails: Organization = await this.fetchOrganizationDetails(orgId);
 
-        if (!(loginMethod in organizationDetails.authMethod)) {
-            throw new UnauthorizedException(`${loginMethod} is not allowed by ${organizationDetails.name}`);
+        if (!organizationDetails.authMethod.includes(loginMethod)) {
+            throw new UnauthorizedException(
+                `${loginMethod} authentication method is not allowed by ${organizationDetails.name}`,
+            );
         }
-
         return true;
     }
 }

@@ -77,8 +77,7 @@ export class AuthController {
 
     @Post("validate-jwt-token")
     async validateJWTToken(@Body() requestBody: { token: string }, @Response() res: Res): Promise<Res> {
-        const { token } = requestBody;
-        return res.json({ token: await this.authService.checkJWTValidity(token) });
+        return res.json({ userDetails: await this.authService.checkJWTValidity(requestBody.token) });
     }
 
     @Get("sso/login")

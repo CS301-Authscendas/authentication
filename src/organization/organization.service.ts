@@ -1,5 +1,5 @@
 import { HttpService } from "@nestjs/axios";
-import { HttpException, Injectable, InternalServerErrorException } from "@nestjs/common";
+import { HttpException, Injectable, InternalServerErrorException, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { Organization } from "../dto/organization.dto";
 
@@ -11,6 +11,7 @@ export class OrganizationService {
             this.configService.get("NODE_ENV") === "production"
                 ? this.configService.get("PRODUCTION_ORGANIZATION_URL") ?? ""
                 : this.configService.get("BASE_ORGANIZATION_URL") ?? "";
+        Logger.log("OrganizationService --- " + this.BASE_URL);
     }
 
     // Function to fetch organization details via id through REST API call.

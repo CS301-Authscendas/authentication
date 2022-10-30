@@ -1,5 +1,12 @@
 import { HttpService } from "@nestjs/axios";
-import { BadRequestException, HttpException, Inject, Injectable, InternalServerErrorException } from "@nestjs/common";
+import {
+    BadRequestException,
+    HttpException,
+    Inject,
+    Injectable,
+    InternalServerErrorException,
+    Logger,
+} from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { ClientProxy } from "@nestjs/microservices";
 import { BankSSOUser } from "../dto/bank-sso-user.dto";
@@ -19,6 +26,7 @@ export class UserService {
             configService.get("NODE_ENV") === "production"
                 ? configService.get("PRODUCTION_ORGANIZATION_URL") ?? ""
                 : configService.get("BASE_ORGANIZATION_URL") ?? "";
+        Logger.log("UserService --- " + this.BASE_URL);
     }
 
     // Function to fetch user email via user ID used during magic link sign up.

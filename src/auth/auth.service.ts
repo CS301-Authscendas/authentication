@@ -36,7 +36,7 @@ export class AuthService {
     ) {
         const tokenWindow = configService.get("2FA-TOKEN-WINDOW_SECONDS");
 
-        if (!tokenWindow) {
+        if (!tokenWindow && process.env.NODE_ENV === "production") {
             throw new InternalServerErrorException("2FA-TOKEN-WINDOW_SECONDS has not been set!");
         }
 

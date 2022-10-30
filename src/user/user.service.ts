@@ -92,6 +92,14 @@ export class UserService {
         this.client.send("set-2FA-secret", dataObj).subscribe();
     }
 
+    clearTwoFactorSecret(email: string): void {
+        const dataObj = {
+            email: email,
+        };
+
+        this.client.send("clear-2FA-secret", dataObj).subscribe();
+    }
+
     async getUserRole(email: string): Promise<UserRole> {
         // Fetch user details and return 2FA secret.
         const userDetails: UserDTO = await this.fetchUserDetails(email);

@@ -126,7 +126,13 @@ export class AuthService {
         userDetails = this.updateUserCreationObj(userDetails, firstName, lastName, phoneNumber, birthDate);
 
         // Save particulars
-        return await this.userService.updateUserDetails(userDetails);
+        const success = await this.userService.updateUserDetails(userDetails);
+
+        const name = `${userDetails.firstName} ${userDetails.lastName}`;
+
+        this.notificationService.triggerRegistrationSuccessEmail(name, email);
+
+        return success;
     }
 
     async validateUserCredentials(email: string, password: string): Promise<UserDTO> {
@@ -185,7 +191,7 @@ export class AuthService {
         const userDetails: UserDTO = await this.userService.fetchUserDetails(email);
         const userSecret = userDetails.twoFATokenSecret;
 
-        // TODO: clear 2FA token from db.
+        this.userService.clearTwoFactorSecret(email);
 
         if (!userSecret) {
             throw new InternalServerErrorException(`${email} does not have a 2FA secret.`);

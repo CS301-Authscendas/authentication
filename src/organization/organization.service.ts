@@ -1,7 +1,6 @@
 import { HttpService } from "@nestjs/axios";
-import { HttpException, Injectable, InternalServerErrorException, UnauthorizedException } from "@nestjs/common";
+import { HttpException, Injectable, InternalServerErrorException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { LoginMethodEnum } from "src/dto/login-method.enum";
 import { Organization } from "src/dto/organization.dto";
 
 @Injectable()
@@ -20,16 +19,5 @@ export class OrganizationService {
             }
             throw new HttpException(error?.response?.data, error?.response?.status);
         }
-    }
-
-    async checkUserLoginMethod(orgId: string, loginMethod: LoginMethodEnum): Promise<boolean> {
-        const organizationDetails: Organization = await this.fetchOrganizationDetails(orgId);
-
-        if (!organizationDetails.authMethod.includes(loginMethod)) {
-            throw new UnauthorizedException(
-                `${loginMethod} authentication method is not allowed by ${organizationDetails.name}`,
-            );
-        }
-        return true;
     }
 }

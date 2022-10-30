@@ -13,6 +13,7 @@ import {
 import { ConfigService } from "@nestjs/config";
 import { AuthGuard } from "@nestjs/passport";
 import { Request as Req, Response as Res } from "express";
+import { LoginMethodCheckDTO } from "src/dto/login-method-check.dto";
 import { TokenRequestDTO } from "../dto/token-request.dto";
 import { UserCreationDTO } from "../dto/user-creation.dto";
 import { UserDTO } from "../dto/user.dto";
@@ -112,5 +113,14 @@ export class AuthController {
                 : "http://localhost:8000/home";
 
         return res.redirect(redirectUri + `?jwtToken=${jwtToken}`);
+    }
+
+    @Post("validate-login-method")
+    async checkLoginMethodValidity(@Body() requestBody: LoginMethodCheckDTO, @Response() res: Res): Promise<Res> {
+        const success = await this.authService.checkUserLoginMethod(
+            requestBody.organizationId,
+            requestBody.loginMethod,
+        );
+        return res.json({ success: success });
     }
 }

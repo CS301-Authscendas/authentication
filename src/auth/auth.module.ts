@@ -3,6 +3,7 @@ import { Module } from "@nestjs/common";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { JwtModule } from "@nestjs/jwt";
 import { PassportModule } from "@nestjs/passport";
+import { OrganizationModule } from "src/organization/organization.module";
 import { NotificationModule } from "../notification/notification.module";
 import { UserModule } from "../user/user.module";
 import { AuthController } from "./auth.controller";
@@ -15,6 +16,7 @@ import { LoginStrategy } from "./strategy/login.strategy";
         HttpModule,
         UserModule,
         NotificationModule,
+        OrganizationModule,
         PassportModule,
         JwtModule.registerAsync({
             imports: [ConfigModule],

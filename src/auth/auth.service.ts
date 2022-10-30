@@ -19,6 +19,9 @@ import { BankSSOUser } from "../dto/bank-sso-user.dto";
 import { UserCreationDTO } from "../dto/user-creation.dto";
 import { UserJSONPayload } from "../dto/user-json-payload.dto";
 import { UserJWTData } from "../dto/user-jwt-data.dto";
+import { LoginMethodEnum } from "src/dto/login-method.enum";
+import { Organization } from "src/dto/organization.dto";
+import { OrganizationService } from "src/organization/organization.service";
 
 @Injectable()
 export class AuthService {
@@ -27,6 +30,7 @@ export class AuthService {
         private readonly httpService: HttpService,
         private readonly userService: UserService,
         private readonly notificationService: NotificationService,
+        private readonly organizationService: OrganizationService,
         private readonly configService: ConfigService,
         private readonly jwtService: JwtService,
     ) {
@@ -243,5 +247,16 @@ export class AuthService {
 
         // Save particulars
         await this.userService.updateUserDetails(userDynamoInfo);
+    }
+
+    async checkUserLoginMethod(orgId: string, loginMethod: LoginMethodEnum): Promise<boolean> {
+        const organizationDetails: Organization = await this.organizationService.fetchOrganizationDetails(orgId);
+
+        if (!organizationDetails.authMethod.includes(loginMethod)) {
+            throw new UnauthorizedException(
+                `${loginMethod} authentication method is not allowed by ${organizationDetails.name}`,
+            );
+        }
+        return true;
     }
 }

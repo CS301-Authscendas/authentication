@@ -16,11 +16,11 @@ import { JwtService } from "@nestjs/jwt";
 import * as bcrypt from "bcryptjs";
 import { decode, verify } from "jsonwebtoken";
 import { BankSSOUser } from "../dto/bank-sso-user.dto";
+import { LoginMethodEnum } from "../dto/login-method.enum";
+import { Organization } from "../dto/organization.dto";
 import { UserCreationDTO } from "../dto/user-creation.dto";
 import { UserJSONPayload } from "../dto/user-json-payload.dto";
 import { UserJWTData } from "../dto/user-jwt-data.dto";
-import { LoginMethodEnum } from "../dto/login-method.enum";
-import { Organization } from "../dto/organization.dto";
 import { OrganizationService } from "../organization/organization.service";
 
 @Injectable()
@@ -36,7 +36,7 @@ export class AuthService {
     ) {
         const tokenWindow = configService.get("2FA-TOKEN-WINDOW_SECONDS");
 
-        if (!tokenWindow && process.env.NODE_ENV === "production") {
+        if (!tokenWindow && configService.get("NODE_ENV") === "production") {
             throw new InternalServerErrorException("2FA-TOKEN-WINDOW_SECONDS has not been set!");
         }
 
@@ -149,7 +149,7 @@ export class AuthService {
     }
 
     async validateUserCredentials(email: string, password: string): Promise<UserDTO> {
-        const userDetails: UserDTO = await this.userService.fetchUserDetails(email);
+        const userDetails: UserDTO = await this.userService.fetchFullUserDetails(email);
 
         if (userDetails.status !== UserStatus.Approved) {
             throw new UnauthorizedException("User has not signed up!");
@@ -239,7 +239,7 @@ export class AuthService {
     // Function to retrieve update DynamoDB user information with SSO user details.
     async updateSSOUserInfo(ssoUserDetails: BankSSOUser): Promise<void> {
         // Do not allow user to enter if he/she has not been seeded.
-        let userDynamoInfo: UserDTO = await this.userService.fetchUserDetails(ssoUserDetails.email);
+        let userDynamoInfo: UserDTO = await this.userService.fetchFullUserDetails(ssoUserDetails.email);
 
         // Update particulars
         const { given_name, family_name, phone_number, birthdate } = ssoUserDetails;

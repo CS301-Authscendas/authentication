@@ -4,13 +4,23 @@ import { ClientProvider, RmqContext, RmqOptions, Transport } from "@nestjs/micro
 
 @Injectable()
 export class MqService {
-    constructor(private readonly configService: ConfigService) {}
+    private transportMethod: string;
+    private user: string;
+    private password: string;
+    private host: string;
+    private port: string;
 
-    private transportMethod = this.configService.get<string>("RABBITMQ_TRANSPORT_METHOD");
-    private user = this.configService.get<string>("RABBITMQ_USER");
-    private password = this.configService.get<string>("RABBITMQ_PASSWORD");
-    private host = this.configService.get<string>("RABBITMQ_HOST");
-    private port = this.configService.get<string>("RABBITMQ_PORT");
+    constructor(configService: ConfigService) {
+        this.transportMethod = configService.get<string>("RABBITMQ_TRANSPORT_METHOD") ?? "";
+        this.user = configService.get<string>("RABBITMQ_USER") ?? "";
+        this.password = configService.get<string>("RABBITMQ_PASSWORD") ?? "";
+        this.port = configService.get<string>("RABBITMQ_PORT") ?? "";
+
+        this.host =
+            configService.get("NODE_ENV") === "production"
+                ? configService.get("PRODUCTION_RABBITMQ_HOST") ?? ""
+                : configService.get("RABBITMQ_HOST") ?? "";
+    }
 
     getOptions(queueName: string, noAck = false): RmqOptions {
         return {

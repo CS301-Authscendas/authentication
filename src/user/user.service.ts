@@ -5,15 +5,21 @@ import { ClientProxy } from "@nestjs/microservices";
 import { BankSSOUser } from "../dto/bank-sso-user.dto";
 
 import { TokenSecretDTO } from "../dto/token-secret.dto";
-import { TwoFATokenObj, UserDTO, UserRole, UserStatus } from "../dto/user.dto";
+import { TwoFATokenObj, UserDTO, UserStatus } from "../dto/user.dto";
 
 @Injectable()
 export class UserService {
+    private BASE_URL: string;
     constructor(
         @Inject("USER_RMQ_SERVICE") private client: ClientProxy,
         private readonly httpService: HttpService,
-        private readonly configService: ConfigService,
-    ) {}
+        configService: ConfigService,
+    ) {
+        this.BASE_URL =
+            configService.get("NODE_ENV") === "production"
+                ? configService.get("PRODUCTION_ORGANIZATION_URL") ?? ""
+                : configService.get("BASE_ORGANIZATION_URL") ?? "";
+    }
 
     // Function to fetch user email via user ID used during magic link sign up.
     async fetchEmailMagicLink(userId: string): Promise<string> {
@@ -27,10 +33,21 @@ export class UserService {
 
     // Function to fetch user details via user ID using REST API call.
     async fetchUserDetailsById(userId: string): Promise<UserDTO> {
-        const baseUrl = this.configService.get("BASE_USER_URL");
         try {
-            const res = await this.httpService.axiosRef.get(`${baseUrl}/id/${userId}`);
+            const res = await this.httpService.axiosRef.get(`${this.BASE_URL}/id/${userId}`);
             return res.data;
+        } catch (error) {
+            if (error.code === "ECONNREFUSED") {
+                throw new InternalServerErrorException("Organization microservice error.");
+            }
+            throw new HttpException(error?.response?.data, error?.response?.status);
+        }
+    }
+
+    async fetchFullUserDetails(email: string): Promise<UserDTO> {
+        try {
+            const res = await this.httpService.axiosRef.get(`${this.BASE_URL}/full/${email}`);
+            return res?.data;
         } catch (error) {
             if (error.code === "ECONNREFUSED") {
                 throw new InternalServerErrorException("Organization microservice error.");
@@ -41,9 +58,8 @@ export class UserService {
 
     // Function to fetch user details via email using REST API call.
     async fetchUserDetails(email: string): Promise<UserDTO> {
-        const baseUrl = this.configService.get("BASE_USER_URL");
         try {
-            const res = await this.httpService.axiosRef.get(`${baseUrl}/full/${email}`);
+            const res = await this.httpService.axiosRef.get(`${this.BASE_URL}/${email}`);
             return res?.data;
         } catch (error) {
             if (error.code === "ECONNREFUSED") {
@@ -54,9 +70,8 @@ export class UserService {
     }
 
     async fetchUserDetailsSSO(token: string): Promise<BankSSOUser> {
-        const baseUrl = this.configService.get("SSO_BASE_URL");
         try {
-            const res = await this.httpService.axiosRef.get(`${baseUrl}/oauth/userinfo`, {
+            const res = await this.httpService.axiosRef.get(`${this.BASE_URL}/oauth/userinfo`, {
                 headers: {
                     Authorization: "Bearer " + token,
                 },
@@ -71,9 +86,8 @@ export class UserService {
     }
 
     async updateUserDetails(userObj: UserDTO): Promise<boolean> {
-        const baseUrl = this.configService.get("BASE_USER_URL");
         try {
-            const res = await this.httpService.axiosRef.put(baseUrl, userObj);
+            const res = await this.httpService.axiosRef.put(this.BASE_URL, userObj);
             return res?.data;
         } catch (error) {
             if (error.code === "ECONNREFUSED") {
@@ -98,12 +112,5 @@ export class UserService {
         };
 
         this.client.send("clear-2FA-secret", dataObj).subscribe();
-    }
-
-    async getUserRole(email: string): Promise<UserRole> {
-        // Fetch user details and return 2FA secret.
-        const userDetails: UserDTO = await this.fetchUserDetails(email);
-
-        return userDetails.role;
     }
 }

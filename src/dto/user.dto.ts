@@ -5,10 +5,16 @@ export enum UserStatus {
     Pending = "pending",
 }
 
-export enum UserRole {
-    Owner = "owner",
-    Admin = "admin",
+export enum UserScopes {
+    AdminDelete = "admin-delete",
+    AdminWrite = "admin-write",
+    AdminRead = "admin-read",
     User = "user",
+}
+
+export class OrganizationPermission {
+    organizationId: string;
+    permission: UserScopes[];
 }
 
 export class TwoFATokenObj {
@@ -61,7 +67,7 @@ export class UserDTO {
     @IsNumber()
     updatedAt: number;
 
-    @IsEnum(UserRole)
+    // TODO: find validator for organization array.
     @IsNotEmpty()
-    role: UserRole;
+    roles: OrganizationPermission[];
 }

@@ -2,7 +2,6 @@ import {
     Body,
     Controller,
     Get,
-    Headers,
     Param,
     Post,
     Query,
@@ -12,13 +11,12 @@ import {
     UseGuards,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { JwtService } from "@nestjs/jwt";
 import { AuthGuard } from "@nestjs/passport";
 import { Request as Req, Response as Res } from "express";
-import { UserDTO } from "../dto/user.dto";
-import { BankSSOUser } from "../dto/bank-sso-user.dto";
+import { LoginMethodCheckDTO } from "../dto/login-method-check.dto";
 import { TokenRequestDTO } from "../dto/token-request.dto";
 import { UserCreationDTO } from "../dto/user-creation.dto";
+import { UserDTO } from "../dto/user.dto";
 import { UserService } from "../user/user.service";
 import { AuthService } from "./auth.service";
 
@@ -28,7 +26,6 @@ export class AuthController {
         private readonly authService: AuthService,
         private readonly configService: ConfigService,
         private readonly userService: UserService,
-        private readonly jwtService: JwtService,
     ) {}
 
     @Get("user-signup-status/:id")
@@ -37,8 +34,9 @@ export class AuthController {
     }
 
     @Post("signup")
-    async signupDetailsUpdate(@Body() requestBody: UserCreationDTO): Promise<boolean> {
-        return await this.authService.signup(requestBody);
+    async signupDetailsUpdate(@Body() requestBody: UserCreationDTO, @Response() res: Res): Promise<Res> {
+        await this.authService.signup(requestBody);
+        return res.status(200).send({ message: "Success" });
     }
 
     @UseGuards(AuthGuard("login"))
@@ -67,10 +65,20 @@ export class AuthController {
         const success: boolean = await this.authService.validate2FAToken(email, token);
 
         if (success) {
-            return res.json(await this.authService.generateJWTToken({ email: email }));
+            return res.json({ token: await this.authService.generateJWTToken({ email: email }) });
         }
 
         throw new UnauthorizedException("Invalid or expired 2FA token.");
+    }
+
+    @Get("generate-jwt-token/:email")
+    async generateJWTToken(@Param("email") email: string, @Response() res: Res) {
+        return res.json({ token: await this.authService.generateJWTToken({ email: email }) });
+    }
+
+    @Post("validate-jwt-token")
+    async validateJWTToken(@Body() requestBody: { token: string }, @Response() res: Res): Promise<Res> {
+        return res.json({ userDetails: await this.authService.checkJWTValidity(requestBody.token) });
     }
 
     @Get("sso/login")
@@ -85,7 +93,7 @@ export class AuthController {
         return res.redirect(authUri);
     }
 
-    @Get("sso/oauth/callback")
+    @Get("sso/callback")
     async oauthCallback(@Request() req: Req, @Response() res: Res, @Query("code") authCode: string): Promise<void> {
         if (!authCode) {
             throw new UnauthorizedException("Consent was not provided to web application.");
@@ -107,8 +115,12 @@ export class AuthController {
         return res.redirect(redirectUri + `?jwtToken=${jwtToken}`);
     }
 
-    @Get("sso/fetch-user-info")
-    async fetchUserInfoSSO(@Headers("Authorization") authorizationToken: string): Promise<BankSSOUser> {
-        return await this.userService.fetchUserDetailsSSO(authorizationToken);
+    @Post("validate-login-method")
+    async checkLoginMethodValidity(@Body() requestBody: LoginMethodCheckDTO, @Response() res: Res): Promise<Res> {
+        const success = await this.authService.checkUserLoginMethod(
+            requestBody.organizationId,
+            requestBody.loginMethod,
+        );
+        return res.json({ success: success });
     }
 }

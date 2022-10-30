@@ -11,6 +11,16 @@ export enum UserRole {
     User = "user",
 }
 
+export class TwoFATokenObj {
+    @IsString()
+    @IsNotEmpty()
+    token: string;
+
+    @IsNumber()
+    @IsNotEmpty()
+    creationDate: number;
+}
+
 export class UserDTO {
     @IsString()
     @IsNotEmpty()
@@ -43,7 +53,7 @@ export class UserDTO {
     @IsString()
     birthDate: string;
 
-    twoFATokenSecret: string | null;
+    twoFATokenObj: TwoFATokenObj | null;
 
     @IsString()
     phoneNumber: string;

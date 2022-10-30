@@ -3,11 +3,11 @@ import {
     HttpException,
     Injectable,
     InternalServerErrorException,
+    Logger,
     UnauthorizedException,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import * as twoFactor from "node-2fa";
-import { UserDTO, UserStatus } from "../dto/user.dto";
+import { TwoFATokenObj, UserDTO, UserStatus } from "../dto/user.dto";
 import { NotificationService } from "../notification/notification.service";
 import { UserService } from "../user/user.service";
 
@@ -19,16 +19,29 @@ import { BankSSOUser } from "../dto/bank-sso-user.dto";
 import { UserCreationDTO } from "../dto/user-creation.dto";
 import { UserJSONPayload } from "../dto/user-json-payload.dto";
 import { UserJWTData } from "../dto/user-jwt-data.dto";
+import { LoginMethodEnum } from "../dto/login-method.enum";
+import { Organization } from "../dto/organization.dto";
+import { OrganizationService } from "../organization/organization.service";
 
 @Injectable()
 export class AuthService {
+    private twoFaTokenWindow: number;
     constructor(
         private readonly httpService: HttpService,
         private readonly userService: UserService,
         private readonly notificationService: NotificationService,
+        private readonly organizationService: OrganizationService,
         private readonly configService: ConfigService,
         private readonly jwtService: JwtService,
-    ) {}
+    ) {
+        const tokenWindow = configService.get("2FA-TOKEN-WINDOW_SECONDS");
+
+        if (!tokenWindow && process.env.NODE_ENV === "production") {
+            throw new InternalServerErrorException("2FA-TOKEN-WINDOW_SECONDS has not been set!");
+        }
+
+        this.twoFaTokenWindow = parseInt(tokenWindow);
+    }
 
     // Function to hash plain text password using bcrypt.
     async hashPassword(password: string): Promise<string> {
@@ -58,6 +71,27 @@ export class AuthService {
             return false;
         }
         return true;
+    }
+
+    async checkJWTValidity(token: string): Promise<UserDTO> {
+        const jwtToken: string = token.replace("Bearer", "").trim();
+
+        // Check if token is an SSO token.
+        if (this.isJwtTokenValid(jwtToken, this.configService.get("SSO_PUBLIC_KEY") ?? "")) {
+            const ssoUser: BankSSOUser = await this.userService.fetchUserDetailsSSO(jwtToken);
+            const dbUser: UserDTO = await this.userService.fetchUserDetails(ssoUser.email);
+            return dbUser;
+        }
+
+        // Check if token is an hosted login token.
+        if (this.isJwtTokenValid(jwtToken, this.configService.get("JWT_PUBLIC_KEY") ?? "")) {
+            const jwtData: UserJWTData = this.decodeJWTToken(jwtToken);
+            const data: UserJSONPayload = jwtData.payload as UserJSONPayload;
+            const dbUser: UserDTO = await this.userService.fetchUserDetails(data.email);
+            return dbUser;
+        }
+
+        throw new UnauthorizedException("Invalid JWT token.");
     }
 
     // Function to request new JWT Token from Bank SSO.
@@ -105,7 +139,13 @@ export class AuthService {
         userDetails = this.updateUserCreationObj(userDetails, firstName, lastName, phoneNumber, birthDate);
 
         // Save particulars
-        return await this.userService.updateUserDetails(userDetails);
+        const success = await this.userService.updateUserDetails(userDetails);
+
+        const name = `${userDetails.firstName} ${userDetails.lastName}`;
+
+        this.notificationService.triggerRegistrationSuccessEmail(name, email);
+
+        return success;
     }
 
     async validateUserCredentials(email: string, password: string): Promise<UserDTO> {
@@ -132,43 +172,50 @@ export class AuthService {
         return true;
     }
 
+    getCurrentSecondsFromEpoch(): number {
+        const now = new Date();
+        return Math.round(now.getTime() / 1000);
+    }
+
     // Function to validate user credentials and request for a new 2FA token for user.
     async generate2FAToken(email: string): Promise<void> {
-        const newSecret = twoFactor.generateSecret();
-
-        if (newSecret == null || newSecret.secret == null) {
-            throw new InternalServerErrorException("Error generating 2FA secret");
-        }
-
         const userDetails: UserDTO = await this.userService.fetchUserDetails(email);
 
         const name = `${userDetails.firstName} ${userDetails.lastName}`;
 
+        const token: string = Math.floor(100000 + Math.random() * 900000).toString();
+
+        const twoFaObj: TwoFATokenObj = {
+            token: token,
+            creationDate: this.getCurrentSecondsFromEpoch(),
+        };
+
         // Save 2FA secret via Organizations microservice.
-        this.userService.saveTwoFactorSecret(email, newSecret.secret);
-
-        const newToken = twoFactor.generateToken(newSecret.secret);
-
-        if (!newToken?.token) {
-            throw new InternalServerErrorException("Error generating 2FA token");
-        }
+        this.userService.saveTwoFactorSecret(email, twoFaObj);
 
         // Send 2FA token via Notifications microservice.
-        this.notificationService.trigger2FATokenEmail(name, email, newToken.token);
+        this.notificationService.trigger2FATokenEmail(name, email, token);
     }
 
     // Function to validate input 2FA token using secret generated for user and return a new JWT token.
-    async validate2FAToken(email: string, token: string): Promise<boolean> {
+    async validate2FAToken(email: string, userToken: string): Promise<boolean> {
         const userDetails: UserDTO = await this.userService.fetchUserDetails(email);
-        const userSecret = userDetails.twoFATokenSecret;
+        const tokenObj: TwoFATokenObj | null = userDetails.twoFATokenObj;
 
-        if (!userSecret) {
+        if (!tokenObj) {
             throw new InternalServerErrorException(`${email} does not have a 2FA secret.`);
         }
 
-        const tokenValidWindow: number = this.configService.get("TOKEN_WINDOW") ?? 1;
-        const results = twoFactor.verifyToken(userSecret, token, tokenValidWindow);
-        return results?.delta != null && results.delta == 0;
+        const { token, creationDate } = tokenObj;
+        Logger.log(`token1: ${token}, token2: ${userToken}`);
+        Logger.log(creationDate + this.twoFaTokenWindow <= this.getCurrentSecondsFromEpoch());
+        Logger.log(`${creationDate}, ${this.twoFaTokenWindow}, ${this.getCurrentSecondsFromEpoch()}`);
+        if (token === userToken && creationDate + this.twoFaTokenWindow >= this.getCurrentSecondsFromEpoch()) {
+            this.userService.clearTwoFactorSecret(email);
+            return true;
+        }
+
+        return false;
     }
 
     // Function to update user object.
@@ -200,5 +247,16 @@ export class AuthService {
 
         // Save particulars
         await this.userService.updateUserDetails(userDynamoInfo);
+    }
+
+    async checkUserLoginMethod(orgId: string, loginMethod: LoginMethodEnum): Promise<boolean> {
+        const organizationDetails: Organization = await this.organizationService.fetchOrganizationDetails(orgId);
+
+        if (!organizationDetails.authMethod.includes(loginMethod)) {
+            throw new UnauthorizedException(
+                `${loginMethod} authentication method is not allowed by ${organizationDetails.name}`,
+            );
+        }
+        return true;
     }
 }

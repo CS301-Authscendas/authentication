@@ -1,11 +1,11 @@
-import { IsEmail, IsNotEmpty, IsString } from "class-validator";
+import { IsEmail, IsNotEmpty } from "class-validator";
+import { TwoFATokenObj } from "./user.dto";
 
 export class TokenSecretDTO {
     @IsEmail()
     @IsNotEmpty()
     email: string;
 
-    @IsString()
     @IsNotEmpty()
-    secret: string;
+    secret: TwoFATokenObj;
 }

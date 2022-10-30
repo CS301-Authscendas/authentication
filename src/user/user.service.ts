@@ -5,7 +5,7 @@ import { ClientProxy } from "@nestjs/microservices";
 import { BankSSOUser } from "../dto/bank-sso-user.dto";
 
 import { TokenSecretDTO } from "../dto/token-secret.dto";
-import { UserDTO, UserRole, UserStatus } from "../dto/user.dto";
+import { TwoFATokenObj, UserDTO, UserRole, UserStatus } from "../dto/user.dto";
 
 @Injectable()
 export class UserService {
@@ -43,7 +43,7 @@ export class UserService {
     async fetchUserDetails(email: string): Promise<UserDTO> {
         const baseUrl = this.configService.get("BASE_USER_URL");
         try {
-            const res = await this.httpService.axiosRef.get(`${baseUrl}/${email}`);
+            const res = await this.httpService.axiosRef.get(`${baseUrl}/full/${email}`);
             return res?.data;
         } catch (error) {
             if (error.code === "ECONNREFUSED") {
@@ -83,13 +83,21 @@ export class UserService {
         }
     }
 
-    saveTwoFactorSecret(email: string, twoFactorSecret: string): void {
+    saveTwoFactorSecret(email: string, twoFactorObj: TwoFATokenObj): void {
         const dataObj: TokenSecretDTO = {
             email: email,
-            secret: twoFactorSecret,
+            secret: twoFactorObj,
         };
 
         this.client.send("set-2FA-secret", dataObj).subscribe();
+    }
+
+    clearTwoFactorSecret(email: string): void {
+        const dataObj = {
+            email: email,
+        };
+
+        this.client.send("clear-2FA-secret", dataObj).subscribe();
     }
 
     async getUserRole(email: string): Promise<UserRole> {

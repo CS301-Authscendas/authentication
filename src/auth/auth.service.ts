@@ -6,7 +6,6 @@ import {
     UnauthorizedException,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import * as twoFactor from "node-2fa";
 import { TwoFATokenObj, UserDTO, UserStatus } from "../dto/user.dto";
 import { NotificationService } from "../notification/notification.service";
 import { UserService } from "../user/user.service";
@@ -175,12 +174,6 @@ export class AuthService {
 
     // Function to validate user credentials and request for a new 2FA token for user.
     async generate2FAToken(email: string): Promise<void> {
-        const newSecret = twoFactor.generateSecret();
-
-        if (newSecret == null || newSecret.secret == null) {
-            throw new InternalServerErrorException("Error generating 2FA secret");
-        }
-
         const userDetails: UserDTO = await this.userService.fetchUserDetails(email);
 
         const name = `${userDetails.firstName} ${userDetails.lastName}`;

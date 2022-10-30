@@ -1,7 +1,7 @@
 import { HttpService } from "@nestjs/axios";
 import { HttpException, Injectable, InternalServerErrorException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { Organization } from "src/dto/organization.dto";
+import { Organization } from "../dto/organization.dto";
 
 @Injectable()
 export class OrganizationService {

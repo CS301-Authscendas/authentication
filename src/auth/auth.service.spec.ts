@@ -3,6 +3,7 @@ import { ConfigModule, ConfigService } from "@nestjs/config";
 import { JwtModule } from "@nestjs/jwt";
 import { PassportModule } from "@nestjs/passport";
 import { Test, TestingModule } from "@nestjs/testing";
+import { OrganizationModule } from "../organization/organization.module";
 import { NotificationModule } from "../notification/notification.module";
 import { UserModule } from "../user/user.module";
 import { AuthController } from "./auth.controller";
@@ -19,6 +20,7 @@ describe("AuthService", () => {
                 HttpModule,
                 UserModule,
                 NotificationModule,
+                OrganizationModule,
                 PassportModule,
                 JwtModule.registerAsync({
                     imports: [ConfigModule],

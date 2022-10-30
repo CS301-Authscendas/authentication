@@ -1,6 +1,6 @@
 import { Inject, Injectable } from "@nestjs/common";
 import { ClientProxy } from "@nestjs/microservices";
-import { SuccessEmailRegistrationDTO } from "src/dto/success-email-registration.dto";
+import { SuccessEmailRegistrationDTO } from "../dto/success-email-registration.dto";
 import { LoginEmailParamsDTO } from "../dto/login-email-params.dto";
 import { TokenEmailParamsDTO } from "../dto/token-email-params.dto";
 

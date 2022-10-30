@@ -19,9 +19,9 @@ import { BankSSOUser } from "../dto/bank-sso-user.dto";
 import { UserCreationDTO } from "../dto/user-creation.dto";
 import { UserJSONPayload } from "../dto/user-json-payload.dto";
 import { UserJWTData } from "../dto/user-jwt-data.dto";
-import { LoginMethodEnum } from "src/dto/login-method.enum";
-import { Organization } from "src/dto/organization.dto";
-import { OrganizationService } from "src/organization/organization.service";
+import { LoginMethodEnum } from "../dto/login-method.enum";
+import { Organization } from "../dto/organization.dto";
+import { OrganizationService } from "../organization/organization.service";
 
 @Injectable()
 export class AuthService {

@@ -13,7 +13,7 @@ import {
 import { ConfigService } from "@nestjs/config";
 import { AuthGuard } from "@nestjs/passport";
 import { Request as Req, Response as Res } from "express";
-import { LoginMethodCheckDTO } from "src/dto/login-method-check.dto";
+import { LoginMethodCheckDTO } from "../dto/login-method-check.dto";
 import { TokenRequestDTO } from "../dto/token-request.dto";
 import { UserCreationDTO } from "../dto/user-creation.dto";
 import { UserDTO } from "../dto/user.dto";

@@ -1,10 +1,10 @@
 import "reflect-metadata";
 
+import { Logger, ValidationPipe } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { NestFactory } from "@nestjs/core";
 import { AppModule } from "./app.module";
 import { MqService } from "./mq/mq.service";
-import { ValidationPipe } from "@nestjs/common";
 
 async function bootstrap() {
     const app = await NestFactory.create(AppModule);
@@ -17,6 +17,9 @@ async function bootstrap() {
 
     await app.startAllMicroservices();
     app.enableCors();
-    await app.listen(configService.get("PORT") ?? 3001);
+
+    const port = configService.get("PORT");
+    Logger.log("Starting service on PORT " + port);
+    await app.listen(port ?? 3001);
 }
 bootstrap();

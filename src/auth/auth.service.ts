@@ -33,6 +33,18 @@ export class AuthService {
         private readonly configService: ConfigService,
         private readonly jwtService: JwtService,
     ) {
+        if (!configService.get("JWT_PRIVATE_KEY")) {
+            throw new InternalServerErrorException("Missing JWT_PRIVATE_KEY from env.");
+        }
+
+        if (!configService.get("KEY_PASSPHRASE")) {
+            throw new InternalServerErrorException("Missing KEY_PASSPHRASE from env.");
+        }
+
+        if (!configService.get("JWT_PUBLIC_KEY")) {
+            throw new InternalServerErrorException("Missing JWT_PUBLIC_KEY from env.");
+        }
+
         const tokenWindow = configService.get("2FA-TOKEN-WINDOW_SECONDS");
 
         if (!tokenWindow && configService.get("NODE_ENV") === "production") {

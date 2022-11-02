@@ -38,7 +38,7 @@ export class AuthService {
         const tokenWindow = configService.get("2FA-TOKEN-WINDOW_SECONDS");
         const ssoPublicKey = this.configService.get("SSO_PUBLIC_KEY");
 
-        if (!ssoPublicKey) {
+        if (UtilHelper.isProduction() && !ssoPublicKey) {
             throw new InternalServerErrorException("Missing environment variable for sso token");
         }
 

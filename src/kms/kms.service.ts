@@ -6,6 +6,7 @@ import { Cache } from "cache-manager";
 import { decode, verify } from "jsonwebtoken";
 import { UserJSONPayload } from "../dto/user-json-payload.dto";
 import { UserJWTData } from "../dto/user-jwt-data.dto";
+import { UtilHelper } from "../utils";
 
 @Injectable()
 export class KmsService {
@@ -20,7 +21,7 @@ export class KmsService {
         const awsSecretAccessKey = this.configService.get("AWS_SECRET_ACCESS_KEY");
         const awsRegion = this.configService.get("AWS_REGION");
 
-        if (!(awsAccessKeyId && awsSecretAccessKey && awsRegion)) {
+        if (UtilHelper.isProduction() && !(awsAccessKeyId && awsSecretAccessKey && awsRegion)) {
             throw new InternalServerErrorException("AWS credentials are missing");
         }
 

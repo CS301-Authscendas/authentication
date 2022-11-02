@@ -20,6 +20,7 @@ import { UserCreationDTO } from "../dto/user-creation.dto";
 import { UserJSONPayload } from "../dto/user-json-payload.dto";
 import { KmsService } from "../kms/kms.service";
 import { OrganizationService } from "../organization/organization.service";
+import { UtilHelper } from "../utils";
 
 @Injectable()
 export class AuthService {
@@ -41,7 +42,7 @@ export class AuthService {
             throw new InternalServerErrorException("Missing environment variable for sso token");
         }
 
-        if (!tokenWindow && configService.get("NODE_ENV") === "production") {
+        if (!tokenWindow && UtilHelper.isProduction()) {
             throw new InternalServerErrorException("2FA-TOKEN-WINDOW_SECONDS has not been set!");
         }
 

@@ -13,6 +13,7 @@ import { BankSSOUser } from "../dto/bank-sso-user.dto";
 
 import { TokenSecretDTO } from "../dto/token-secret.dto";
 import { TwoFATokenObj, UserDTO, UserStatus } from "../dto/user.dto";
+import { UtilHelper } from "../utils";
 
 @Injectable()
 export class UserService {
@@ -22,10 +23,9 @@ export class UserService {
         private readonly httpService: HttpService,
         configService: ConfigService,
     ) {
-        this.BASE_URL =
-            configService.get("NODE_ENV") === "production"
-                ? configService.get("PRODUCTION_ORGANIZATION_URL") ?? ""
-                : configService.get("BASE_ORGANIZATION_URL") ?? "";
+        this.BASE_URL = UtilHelper.isProduction()
+            ? configService.get("PRODUCTION_ORGANIZATION_URL") ?? ""
+            : configService.get("BASE_ORGANIZATION_URL") ?? "";
 
         this.BASE_URL += "/user";
         Logger.log("UserService --- " + this.BASE_URL);

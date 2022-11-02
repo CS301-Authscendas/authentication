@@ -2,15 +2,15 @@ import { HttpService } from "@nestjs/axios";
 import { HttpException, Injectable, InternalServerErrorException, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { Organization } from "../dto/organization.dto";
+import { UtilHelper } from "../utils";
 
 @Injectable()
 export class OrganizationService {
     private BASE_URL: string;
     constructor(configService: ConfigService, private readonly httpService: HttpService) {
-        this.BASE_URL =
-            configService.get("NODE_ENV") === "production"
-                ? configService.get("PRODUCTION_ORGANIZATION_URL") ?? ""
-                : configService.get("BASE_ORGANIZATION_URL") ?? "";
+        this.BASE_URL = UtilHelper.isProduction()
+            ? configService.get("PRODUCTION_ORGANIZATION_URL") ?? ""
+            : configService.get("BASE_ORGANIZATION_URL") ?? "";
 
         this.BASE_URL += "/organization";
         Logger.log("OrganizationService --- " + this.BASE_URL);

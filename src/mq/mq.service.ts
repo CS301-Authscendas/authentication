@@ -1,6 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { ClientProvider, RmqContext, RmqOptions, Transport } from "@nestjs/microservices";
+import { UtilHelper } from "../utils";
 
 @Injectable()
 export class MqService {
@@ -16,10 +17,9 @@ export class MqService {
         this.password = configService.get<string>("RABBITMQ_PASSWORD") ?? "";
         this.port = configService.get<string>("RABBITMQ_PORT") ?? "";
 
-        this.host =
-            configService.get("NODE_ENV") === "production"
-                ? configService.get("PRODUCTION_RABBITMQ_HOST") ?? ""
-                : configService.get("RABBITMQ_HOST") ?? "";
+        this.host = UtilHelper.isProduction()
+            ? configService.get("PRODUCTION_RABBITMQ_HOST") ?? ""
+            : configService.get("RABBITMQ_HOST") ?? "";
     }
 
     getOptions(queueName: string, noAck = false): RmqOptions {

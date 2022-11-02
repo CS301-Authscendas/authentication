@@ -19,6 +19,7 @@ import { TokenRequestDTO } from "../dto/token-request.dto";
 import { UserCreationDTO } from "../dto/user-creation.dto";
 import { UserDTO } from "../dto/user.dto";
 import { UserService } from "../user/user.service";
+import { UtilHelper } from "../utils";
 import { AuthService } from "./auth.service";
 import { LoginAuthGuard } from "./guard/login-auth.guard";
 
@@ -116,10 +117,9 @@ export class AuthController {
         // Update everytime the user login as information might have changed after last login.
         await this.authService.updateSSOUserInfo(userDetails);
 
-        const redirectUri =
-            this.configService.get("NODE_ENV") === "production"
-                ? this.configService.get("PRODUCTION_URL") + "/home"
-                : "http://localhost:8000/home";
+        const redirectUri = UtilHelper.isProduction()
+            ? this.configService.get("PRODUCTION_URL") + "/home"
+            : "http://localhost:8000/home";
 
         return res.redirect(redirectUri + `?jwtToken=${jwtToken}`);
     }

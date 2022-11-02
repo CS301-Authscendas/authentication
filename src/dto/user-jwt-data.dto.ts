@@ -1,4 +1,6 @@
-import { Jwt } from "jsonwebtoken";
+import { JwtPayload } from "jsonwebtoken";
 import { UserJSONPayload } from "./user-json-payload.dto";
 
-export interface UserJWTData extends Jwt, UserJSONPayload {}
+export interface UserJWTData extends JwtPayload {
+    data: UserJSONPayload;
+}

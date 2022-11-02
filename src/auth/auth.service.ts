@@ -11,41 +11,35 @@ import { NotificationService } from "../notification/notification.service";
 import { UserService } from "../user/user.service";
 
 import { HttpService } from "@nestjs/axios";
-import { JwtService } from "@nestjs/jwt";
 import * as bcrypt from "bcryptjs";
-import { decode, verify } from "jsonwebtoken";
+import { verify } from "jsonwebtoken";
 import { BankSSOUser } from "../dto/bank-sso-user.dto";
 import { LoginMethodEnum } from "../dto/login-method.enum";
 import { Organization } from "../dto/organization.dto";
 import { UserCreationDTO } from "../dto/user-creation.dto";
 import { UserJSONPayload } from "../dto/user-json-payload.dto";
-import { UserJWTData } from "../dto/user-jwt-data.dto";
+import { KmsService } from "../kms/kms.service";
 import { OrganizationService } from "../organization/organization.service";
 
 @Injectable()
 export class AuthService {
     private twoFaTokenWindow: number;
+    private ssoPublicKey: string;
+
     constructor(
         private readonly httpService: HttpService,
         private readonly userService: UserService,
         private readonly notificationService: NotificationService,
         private readonly organizationService: OrganizationService,
         private readonly configService: ConfigService,
-        private readonly jwtService: JwtService,
+        private readonly kmsService: KmsService,
     ) {
-        if (!configService.get("JWT_PRIVATE_KEY")) {
-            throw new InternalServerErrorException("Missing JWT_PRIVATE_KEY from env.");
-        }
-
-        if (!configService.get("KEY_PASSPHRASE")) {
-            throw new InternalServerErrorException("Missing KEY_PASSPHRASE from env.");
-        }
-
-        if (!configService.get("JWT_PUBLIC_KEY")) {
-            throw new InternalServerErrorException("Missing JWT_PUBLIC_KEY from env.");
-        }
-
         const tokenWindow = configService.get("2FA-TOKEN-WINDOW_SECONDS");
+        const ssoPublicKey = this.configService.get("SSO_PUBLIC_KEY");
+
+        if (!ssoPublicKey) {
+            throw new InternalServerErrorException("Missing environment variable for sso token");
+        }
 
         if (!tokenWindow && configService.get("NODE_ENV") === "production") {
             throw new InternalServerErrorException("2FA-TOKEN-WINDOW_SECONDS has not been set!");
@@ -67,39 +61,37 @@ export class AuthService {
 
     // Function to generate JWT Token, encoding a JSON payload.
     async generateJWTToken(payload: UserJSONPayload): Promise<string> {
-        return this.jwtService.sign(payload);
+        return await this.kmsService.sign(payload);
     }
 
-    // Function to decode JWT Token.
-    decodeJWTToken(jwtToken: string): UserJWTData {
-        return decode(jwtToken, { complete: true }) as UserJWTData;
-    }
-
-    isJwtTokenValid(jwtToken: string, key: string): boolean {
+    validateSsoToken(jwtToken: string, key: string): boolean {
         try {
             verify(jwtToken, key, { algorithms: ["RS256"] });
+            return true;
         } catch (error) {
-            return false;
+            throw new BadRequestException(error.message ?? "Invalid SSO jwt token");
         }
-        return true;
     }
 
-    async checkJWTValidity(token: string): Promise<UserDTO> {
+    async checkJWTValidity(token: string, loginMethod: LoginMethodEnum): Promise<UserDTO> {
         const jwtToken: string = token.replace("Bearer", "").trim();
 
-        // Check if token is an SSO token.
-        if (this.isJwtTokenValid(jwtToken, this.configService.get("SSO_PUBLIC_KEY") ?? "")) {
-            const ssoUser: BankSSOUser = await this.userService.fetchUserDetailsSSO(jwtToken);
-            const dbUser: UserDTO = await this.userService.fetchUserDetails(ssoUser.email);
-            return dbUser;
-        }
+        switch (loginMethod) {
+            case "HOSTED": {
+                const hostedTokenData = await this.kmsService.decode(jwtToken);
 
-        // Check if token is an hosted login token.
-        if (this.isJwtTokenValid(jwtToken, this.configService.get("JWT_PUBLIC_KEY") ?? "")) {
-            const jwtData: UserJWTData = this.decodeJWTToken(jwtToken);
-            const data: UserJSONPayload = jwtData.payload as UserJSONPayload;
-            const dbUser: UserDTO = await this.userService.fetchUserDetails(data.email);
-            return dbUser;
+                const dbUser: UserDTO = await this.userService.fetchUserDetails(hostedTokenData.email);
+                return dbUser;
+            }
+            case "SSO": {
+                this.validateSsoToken(jwtToken, this.ssoPublicKey);
+
+                const ssoUser: BankSSOUser = await this.userService.fetchUserDetailsSSO(jwtToken);
+                const dbUser: UserDTO = await this.userService.fetchUserDetails(ssoUser.email);
+                return dbUser;
+            }
+            default:
+                break;
         }
 
         throw new UnauthorizedException("Invalid JWT token.");

@@ -1,4 +1,5 @@
 import {
+    BadRequestException,
     Body,
     Controller,
     Get,
@@ -11,14 +12,15 @@ import {
     UseGuards,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { AuthGuard } from "@nestjs/passport";
 import { Request as Req, Response as Res } from "express";
 import { LoginMethodCheckDTO } from "../dto/login-method-check.dto";
+import { LoginMethodEnum } from "../dto/login-method.enum";
 import { TokenRequestDTO } from "../dto/token-request.dto";
 import { UserCreationDTO } from "../dto/user-creation.dto";
 import { UserDTO } from "../dto/user.dto";
 import { UserService } from "../user/user.service";
 import { AuthService } from "./auth.service";
+import { LoginAuthGuard } from "./guard/login-auth.guard";
 
 @Controller("auth")
 export class AuthController {
@@ -39,7 +41,7 @@ export class AuthController {
         return res.status(200).send({ message: "Success" });
     }
 
-    @UseGuards(AuthGuard("login"))
+    @UseGuards(LoginAuthGuard)
     @Post("login")
     async hostedLogin(@Request() req: Req, @Response() res: Res): Promise<Res> {
         const user: UserDTO = req.user as UserDTO;
@@ -77,8 +79,15 @@ export class AuthController {
     }
 
     @Post("validate-jwt-token")
-    async validateJWTToken(@Body() requestBody: { token: string }, @Response() res: Res): Promise<Res> {
-        return res.json({ userDetails: await this.authService.checkJWTValidity(requestBody.token) });
+    async validateJWTToken(
+        @Body() requestBody: { token: string; loginMethod: LoginMethodEnum },
+        @Response() res: Res,
+    ): Promise<Res> {
+        const { token, loginMethod } = requestBody;
+        if (!loginMethod) {
+            throw new BadRequestException("Login method not specified");
+        }
+        return res.json({ userDetails: await this.authService.checkJWTValidity(token, loginMethod) });
     }
 
     @Get("sso/login")

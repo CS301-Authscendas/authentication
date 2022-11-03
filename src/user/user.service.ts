@@ -21,7 +21,7 @@ export class UserService {
     constructor(
         @Inject("USER_RMQ_SERVICE") private client: ClientProxy,
         private readonly httpService: HttpService,
-        configService: ConfigService,
+        private readonly configService: ConfigService,
     ) {
         this.BASE_URL = UtilHelper.isProduction()
             ? configService.get("PRODUCTION_ORGANIZATION_URL") ?? ""
@@ -81,11 +81,14 @@ export class UserService {
 
     async fetchUserDetailsSSO(token: string): Promise<BankSSOUser> {
         try {
-            const res = await this.httpService.axiosRef.get(`${this.BASE_URL}/oauth/userinfo`, {
-                headers: {
-                    Authorization: "Bearer " + token,
+            const res = await this.httpService.axiosRef.get(
+                `${this.configService.get("SSO_BASE_URL")}/oauth/userinfo`,
+                {
+                    headers: {
+                        Authorization: "Bearer " + token,
+                    },
                 },
-            });
+            );
             return res?.data;
         } catch (error) {
             if (error.code === "ECONNREFUSED") {

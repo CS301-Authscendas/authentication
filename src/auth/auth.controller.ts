@@ -25,11 +25,16 @@ import { LoginAuthGuard } from "./guard/login-auth.guard";
 
 @Controller("auth")
 export class AuthController {
+    private BASE_GATEWAY_URL: string;
     constructor(
         private readonly authService: AuthService,
         private readonly configService: ConfigService,
         private readonly userService: UserService,
-    ) {}
+    ) {
+        this.BASE_GATEWAY_URL = UtilHelper.isProduction()
+            ? configService.get("PRODUCTION_GATEWAY_URL") ?? ""
+            : configService.get("BASE_GATEWAY_URL") ?? "";
+    }
 
     @Get("user-signup-status/:id")
     async magicLinkUserSignUpCheck(@Param("id") userId: string): Promise<string> {
@@ -91,16 +96,21 @@ export class AuthController {
         return res.json({ userDetails: await this.authService.checkJWTValidity(token, loginMethod) });
     }
 
+    @Get("get-jwks-pubkey/:keyId")
+    async getJwksKey(@Param("keyId") keyId: string, @Response() res: Res): Promise<Res> {
+        return res.json({ signingKey: this.authService.getJwksPublicKey(keyId) });
+    }
+
     @Get("sso/login")
-    ssoRedirect(@Request() req: Req, @Response() res: Res): void {
+    ssoRedirect(@Request() req: Req, @Response() res: Res): Res {
         const clientId = this.configService.get("SSO_CLIENT_ID");
         const ssoBaseUrl = this.configService.get("SSO_BASE_URL");
-        const callbackUri = encodeURI(`${req.protocol}://${req.get("host")}/auth/sso/oauth/callback`);
+        const callbackUri = encodeURI(`${this.BASE_GATEWAY_URL}/api/auth/sso/callback`);
         const scopes: string[] = this.configService.get("SSO_CLIENT_SCOPE")?.split(",") ?? [];
         const authUri = `${ssoBaseUrl}/oauth/authorize?client_id=${clientId}&redirect_uri=${callbackUri}&response_type=code&scope=${scopes.join(
             "+",
         )}`;
-        return res.redirect(authUri);
+        return res.json({ redirectUrl: authUri });
     }
 
     @Get("sso/callback")
@@ -109,7 +119,7 @@ export class AuthController {
             throw new UnauthorizedException("Consent was not provided to web application.");
         }
 
-        const callbackUri = encodeURI(`${req.protocol}://${req.get("host")}${req.originalUrl}`);
+        const callbackUri = encodeURI(`${this.BASE_GATEWAY_URL}/api/auth/sso/callback?code=${authCode}`);
         const jwtToken = await this.authService.ssoTokenRequest(authCode, callbackUri);
         const userDetails = await this.userService.fetchUserDetailsSSO(jwtToken);
 

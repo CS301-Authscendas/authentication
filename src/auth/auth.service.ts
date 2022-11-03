@@ -37,7 +37,7 @@ export class AuthService {
         private readonly configService: ConfigService,
         private readonly kmsService: KmsService,
     ) {
-        const tokenWindow = configService.get("2FA-TOKEN-WINDOW_SECONDS");
+        const tokenWindow = configService.get("2FA_TOKEN_WINDOW_SECONDS");
         const ssoPublicKey = this.configService.get("SSO_PUBLIC_KEY");
 
         if (UtilHelper.isProduction() && !ssoPublicKey) {
@@ -45,7 +45,7 @@ export class AuthService {
         }
 
         if (!tokenWindow && UtilHelper.isProduction()) {
-            throw new InternalServerErrorException("2FA-TOKEN-WINDOW_SECONDS has not been set!");
+            throw new InternalServerErrorException("2FA_TOKEN_WINDOW_SECONDS has not been set!");
         }
 
         this.twoFaTokenWindow = parseInt(tokenWindow);

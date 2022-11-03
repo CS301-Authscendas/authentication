@@ -12,7 +12,8 @@ import { UserService } from "../user/user.service";
 
 import { HttpService } from "@nestjs/axios";
 import * as bcrypt from "bcryptjs";
-import { verify } from "jsonwebtoken";
+import { decode, JwtPayload, verify } from "jsonwebtoken";
+import { JwksClient, SigningKey } from "jwks-rsa";
 import { BankSSOUser } from "../dto/bank-sso-user.dto";
 import { LoginMethodEnum } from "../dto/login-method.enum";
 import { Organization } from "../dto/organization.dto";
@@ -26,6 +27,7 @@ import { UtilHelper } from "../utils";
 export class AuthService {
     private twoFaTokenWindow: number;
     private ssoPublicKey: string;
+    private jwksClient: JwksClient;
 
     constructor(
         private readonly httpService: HttpService,
@@ -47,6 +49,15 @@ export class AuthService {
         }
 
         this.twoFaTokenWindow = parseInt(tokenWindow);
+
+        this.jwksClient = new JwksClient({
+            jwksUri: this.configService.get("JWKS_URI") ?? "",
+            rateLimit: true,
+            cache: true,
+            cacheMaxEntries: 10,
+            cacheMaxAge: 5,
+            jwksRequestsPerMinute: 10,
+        });
     }
 
     // Function to hash plain text password using bcrypt.
@@ -74,21 +85,50 @@ export class AuthService {
         }
     }
 
+    async getJwksPublicKey(keyId: string): Promise<string> {
+        const matchingkey: SigningKey = await this.jwksClient.getSigningKey(keyId);
+        return matchingkey.getPublicKey();
+    }
+
+    async validateJwksToken(jwtToken: string): Promise<string> {
+        try {
+            const result = decode(jwtToken, { complete: true });
+            if (!result) {
+                throw new BadRequestException("Invalid jwt token!");
+            }
+
+            const { header } = result;
+            const { kid } = header;
+
+            const publicKey = await this.getJwksPublicKey(kid ?? "");
+            const jwtPayload = verify(jwtToken, publicKey);
+
+            return (jwtPayload as JwtPayload)?.email;
+        } catch (error) {
+            throw new BadRequestException(error.message ?? "Unable to validate Auth0 jwt token");
+        }
+    }
+
     async checkJWTValidity(token: string, loginMethod: LoginMethodEnum): Promise<UserDTO> {
         const jwtToken: string = token.replace("Bearer", "").trim();
 
         switch (loginMethod) {
-            case "HOSTED": {
+            case LoginMethodEnum.Hosted: {
                 const hostedTokenData = await this.kmsService.decode(jwtToken);
 
                 const dbUser: UserDTO = await this.userService.fetchUserDetails(hostedTokenData.email);
                 return dbUser;
             }
-            case "SSO": {
+            case LoginMethodEnum.SSO: {
                 this.validateSsoToken(jwtToken, this.ssoPublicKey);
 
                 const ssoUser: BankSSOUser = await this.userService.fetchUserDetailsSSO(jwtToken);
                 const dbUser: UserDTO = await this.userService.fetchUserDetails(ssoUser.email);
+                return dbUser;
+            }
+            case LoginMethodEnum.Auth0: {
+                const userEmail = await this.validateJwksToken(jwtToken);
+                const dbUser: UserDTO = await this.userService.fetchUserDetails(userEmail);
                 return dbUser;
             }
             default:
@@ -116,7 +156,7 @@ export class AuthService {
 
         try {
             const res = await this.httpService.axiosRef.post(requestUrl, requestBody);
-            return res?.data;
+            return res?.data?.access_token;
         } catch (error) {
             if (error.code === "ECONNREFUSED") {
                 throw new InternalServerErrorException("Organization microservice error.");

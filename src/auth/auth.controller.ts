@@ -114,7 +114,7 @@ export class AuthController {
     }
 
     @Get("sso/callback")
-    async oauthCallback(@Request() req: Req, @Response() res: Res, @Query("code") authCode: string): Promise<void> {
+    async oauthCallback(@Request() req: Req, @Response() res: Res, @Query("code") authCode: string): Promise<Res> {
         if (!authCode) {
             throw new UnauthorizedException("Consent was not provided to web application.");
         }
@@ -128,11 +128,13 @@ export class AuthController {
         await this.authService.updateSSOUserInfo(userDetails);
 
         // Redirect to organisation selection screen.
-        const redirectUri = UtilHelper.isProduction()
-            ? this.configService.get("PRODUCTION_URL") + "/organisations"
-            : "http://localhost:8000/organisations";
+        const clientUrl = UtilHelper.isProduction()
+            ? this.configService.get("PRODUCTION_CLIENT_URL") ?? ""
+            : this.configService.get("BASE_CLIENT_URL") ?? "";
 
-        return res.redirect(redirectUri + `?jwtToken=${jwtToken}`);
+        const redirectUrl = clientUrl + `/organisations?jwtToken=${jwtToken}`;
+
+        return res.json({ redirectUrl: redirectUrl });
     }
 
     @Post("validate-login-method")

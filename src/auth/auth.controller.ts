@@ -117,9 +117,10 @@ export class AuthController {
         // Update everytime the user login as information might have changed after last login.
         await this.authService.updateSSOUserInfo(userDetails);
 
+        // Redirect to organisation selection screen.
         const redirectUri = UtilHelper.isProduction()
-            ? this.configService.get("PRODUCTION_URL") + "/home"
-            : "http://localhost:8000/home";
+            ? this.configService.get("PRODUCTION_URL") + "/organisations"
+            : "http://localhost:8000/organisations";
 
         return res.redirect(redirectUri + `?jwtToken=${jwtToken}`);
     }

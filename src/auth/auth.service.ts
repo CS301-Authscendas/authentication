@@ -38,9 +38,9 @@ export class AuthService {
         private readonly kmsService: KmsService,
     ) {
         const tokenWindow = configService.get("2FA_TOKEN_WINDOW_SECONDS");
-        const ssoPublicKey = this.configService.get("SSO_PUBLIC_KEY");
+        this.ssoPublicKey = this.configService.get("SSO_PUBLIC_KEY") ?? "";
 
-        if (UtilHelper.isProduction() && !ssoPublicKey) {
+        if (UtilHelper.isProduction() && this.ssoPublicKey === "") {
             throw new InternalServerErrorException("Missing environment variable for sso token");
         }
 

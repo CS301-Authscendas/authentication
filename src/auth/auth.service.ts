@@ -25,6 +25,8 @@ import { UserJSONPayload } from "../dto/user-json-payload.dto";
 import { KmsService } from "../kms/kms.service";
 import { OrganizationService } from "../organization/organization.service";
 import { UtilHelper } from "../utils";
+import { Auth0LoginDataDTO } from "src/dto/auth0-login-data.dto";
+import { stringify } from "qs";
 
 @Injectable()
 export class AuthService {
@@ -199,7 +201,9 @@ export class AuthService {
         // Save particulars
         const success = await this.userService.updateUserDetails(userDetails);
 
-        this.notificationService.triggerRegistrationSuccessEmail(userDetails.getFullName(), email);
+        const name = `${userDetails.firstName} ${userDetails.lastName}`;
+
+        this.notificationService.triggerRegistrationSuccessEmail(name, email);
 
         return success;
     }
@@ -225,7 +229,9 @@ export class AuthService {
     async hostedLogin(email: string, password: string): Promise<boolean> {
         const userDetails: UserDTO = await this.validateUserCredentials(email, password);
         await this.generate2FAToken(userDetails.email);
-        this.notificationService.triggerLoginAlertEmail(userDetails.getFullName(), email);
+
+        const name = `${userDetails.firstName} ${userDetails.lastName}`;
+        this.notificationService.triggerLoginAlertEmail(name, email);
         return true;
     }
 
@@ -247,8 +253,9 @@ export class AuthService {
         // Save 2FA secret via Organizations microservice.
         this.userService.saveTwoFactorSecret(email, twoFaObj);
 
+        const name = `${userDetails.firstName} ${userDetails.lastName}`;
         // Send 2FA token via Notifications microservice.
-        this.notificationService.trigger2FATokenEmail(userDetails.getFullName(), email, token);
+        this.notificationService.trigger2FATokenEmail(name, email, token);
     }
 
     // Function to validate input 2FA token using secret generated for user and return a new JWT token.
@@ -313,5 +320,31 @@ export class AuthService {
             );
         }
         return true;
+    }
+
+    async auth0Login(email: string, password: string): Promise<string> {
+        if (!email || !password) {
+            throw new BadRequestException("Missing email or password!");
+        }
+
+        const data: Auth0LoginDataDTO = {
+            grant_type: "password",
+            client_id: this.configService.get("AUTH0_CLIENT_ID") ?? "",
+            client_secret: this.configService.get("AUTH0_CLIENT_SECRET") ?? "",
+            username: email,
+            password: password,
+        };
+
+        const encodedData = stringify(data);
+
+        try {
+            const res = await this.httpService.axiosRef.post("/oauth/token", encodedData, {
+                baseURL: this.configService.get("AUTH0_BASE_URL"),
+                headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
+            });
+            return res?.data?.id_token;
+        } catch (error) {
+            throw new HttpException(error?.response?.data, error?.response?.status);
+        }
     }
 }

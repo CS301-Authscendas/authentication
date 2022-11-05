@@ -13,6 +13,7 @@ import {
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { Request as Req, Response as Res } from "express";
+import { EmailPasswordDTO } from "src/dto/email-password.dto";
 import { LoginMethodCheckDTO } from "../dto/login-method-check.dto";
 import { LoginMethodEnum } from "../dto/login-method.enum";
 import { TokenRequestDTO } from "../dto/token-request.dto";
@@ -135,6 +136,12 @@ export class AuthController {
         const redirectUrl = clientUrl + `/organisations?jwtToken=${jwtToken}`;
 
         return res.json({ redirectUrl: redirectUrl });
+    }
+
+    @Post("auth0/login")
+    async auth0Login(@Body() requestBody: EmailPasswordDTO, @Response() res: Res): Promise<Res> {
+        const { email, password } = requestBody;
+        return res.json({ token: await this.authService.auth0Login(email, password) });
     }
 
     @Post("validate-login-method")

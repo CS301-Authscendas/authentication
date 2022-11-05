@@ -70,8 +70,4 @@ export class UserDTO {
     // TODO: find validator for organization array.
     @IsNotEmpty()
     roles: OrganizationPermission[];
-
-    getFullName(): string {
-        return `${this.firstName} ${this.lastName}`;
-    }
 }

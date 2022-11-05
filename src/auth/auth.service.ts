@@ -185,9 +185,7 @@ export class AuthService {
         // Save particulars
         const success = await this.userService.updateUserDetails(userDetails);
 
-        const name = `${userDetails.firstName} ${userDetails.lastName}`;
-
-        this.notificationService.triggerRegistrationSuccessEmail(name, email);
+        this.notificationService.triggerRegistrationSuccessEmail(userDetails.getFullName(), email);
 
         return success;
     }
@@ -213,6 +211,7 @@ export class AuthService {
     async hostedLogin(email: string, password: string): Promise<boolean> {
         const userDetails: UserDTO = await this.validateUserCredentials(email, password);
         await this.generate2FAToken(userDetails.email);
+        this.notificationService.triggerLoginAlertEmail(userDetails.getFullName(), email);
         return true;
     }
 
@@ -224,9 +223,6 @@ export class AuthService {
     // Function to validate user credentials and request for a new 2FA token for user.
     async generate2FAToken(email: string): Promise<void> {
         const userDetails: UserDTO = await this.userService.fetchUserDetails(email);
-
-        const name = `${userDetails.firstName} ${userDetails.lastName}`;
-
         const token: string = Math.floor(100000 + Math.random() * 900000).toString();
 
         const twoFaObj: TwoFATokenObj = {
@@ -238,7 +234,7 @@ export class AuthService {
         this.userService.saveTwoFactorSecret(email, twoFaObj);
 
         // Send 2FA token via Notifications microservice.
-        this.notificationService.trigger2FATokenEmail(name, email, token);
+        this.notificationService.trigger2FATokenEmail(userDetails.getFullName(), email, token);
     }
 
     // Function to validate input 2FA token using secret generated for user and return a new JWT token.

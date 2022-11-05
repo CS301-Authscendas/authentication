@@ -13,7 +13,7 @@ import {
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { Request as Req, Response as Res } from "express";
-import { EmailPasswordDTO } from "src/dto/email-password.dto";
+import { EmailPasswordDTO } from "../dto/email-password.dto";
 import { LoginMethodCheckDTO } from "../dto/login-method-check.dto";
 import { LoginMethodEnum } from "../dto/login-method.enum";
 import { TokenRequestDTO } from "../dto/token-request.dto";

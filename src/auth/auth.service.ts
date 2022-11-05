@@ -1,6 +1,8 @@
 import {
     BadRequestException,
+    CACHE_MANAGER,
     HttpException,
+    Inject,
     Injectable,
     InternalServerErrorException,
     UnauthorizedException,
@@ -12,6 +14,7 @@ import { UserService } from "../user/user.service";
 
 import { HttpService } from "@nestjs/axios";
 import * as bcrypt from "bcryptjs";
+import { Cache } from "cache-manager";
 import { decode, JwtPayload, verify } from "jsonwebtoken";
 import { JwksClient, SigningKey } from "jwks-rsa";
 import { BankSSOUser } from "../dto/bank-sso-user.dto";
@@ -36,6 +39,8 @@ export class AuthService {
         private readonly organizationService: OrganizationService,
         private readonly configService: ConfigService,
         private readonly kmsService: KmsService,
+        @Inject(CACHE_MANAGER) private readonly orgCacheManager: Cache,
+        @Inject(CACHE_MANAGER) private readonly userCacheManager: Cache,
     ) {
         const tokenWindow = configService.get("2FA_TOKEN_WINDOW_SECONDS");
         this.ssoPublicKey = this.configService.get("SSO_PUBLIC_KEY") ?? "";
@@ -111,31 +116,40 @@ export class AuthService {
 
     async checkJWTValidity(token: string, loginMethod: LoginMethodEnum): Promise<UserDTO> {
         const jwtToken: string = token.replace("Bearer", "").trim();
+        let dbUser: UserDTO | undefined;
+        let email = "";
 
         switch (loginMethod) {
             case LoginMethodEnum.Hosted: {
                 const hostedTokenData = await this.kmsService.decode(jwtToken);
-
-                const dbUser: UserDTO = await this.userService.fetchUserDetails(hostedTokenData.email);
-                return dbUser;
+                email = hostedTokenData.email;
+                break;
             }
             case LoginMethodEnum.SSO: {
                 this.validateSsoToken(jwtToken, this.ssoPublicKey);
-
                 const ssoUser: BankSSOUser = await this.userService.fetchUserDetailsSSO(jwtToken);
-                const dbUser: UserDTO = await this.userService.fetchUserDetails(ssoUser.email);
-                return dbUser;
+                email = ssoUser.email;
+                break;
             }
             case LoginMethodEnum.Auth0: {
-                const userEmail = await this.validateJwksToken(jwtToken);
-                const dbUser: UserDTO = await this.userService.fetchUserDetails(userEmail);
-                return dbUser;
+                email = await this.validateJwksToken(jwtToken);
+                break;
             }
             default:
                 break;
         }
 
-        throw new UnauthorizedException("Invalid JWT token.");
+        dbUser = await this.userCacheManager.get(email);
+        if (!dbUser) {
+            dbUser = await this.userService.fetchUserDetails(email);
+            await this.userCacheManager.set(email, dbUser);
+        }
+
+        if (!dbUser) {
+            throw new UnauthorizedException("Invalid JWT token.");
+        }
+
+        return dbUser;
     }
 
     // Function to request new JWT Token from Bank SSO.
@@ -287,7 +301,11 @@ export class AuthService {
     }
 
     async checkUserLoginMethod(orgId: string, loginMethod: LoginMethodEnum): Promise<boolean> {
-        const organizationDetails: Organization = await this.organizationService.fetchOrganizationDetails(orgId);
+        let organizationDetails: Organization | undefined = await this.orgCacheManager.get(orgId);
+        if (!organizationDetails) {
+            organizationDetails = await this.organizationService.fetchOrganizationDetails(orgId);
+            await this.orgCacheManager.set(orgId, organizationDetails);
+        }
 
         if (!organizationDetails.authMethod.includes(loginMethod)) {
             throw new UnauthorizedException(

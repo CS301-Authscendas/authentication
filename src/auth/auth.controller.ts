@@ -99,7 +99,7 @@ export class AuthController {
 
     @Get("get-jwks-pubkey/:keyId")
     async getJwksKey(@Param("keyId") keyId: string, @Response() res: Res): Promise<Res> {
-        return res.json({ signingKey: this.authService.getJwksPublicKey(keyId) });
+        return res.json({ signingKey: await this.authService.getJwksPublicKey(keyId) });
     }
 
     @Get("sso/login")

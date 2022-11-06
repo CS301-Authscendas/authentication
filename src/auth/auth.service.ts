@@ -165,6 +165,18 @@ export class AuthService {
         return dbUser;
     }
 
+    async triggerSendLoginAlertEmail(email: string): Promise<void> {
+        let userDetails: UserDTO | undefined = await this.userCacheManager.get(email);
+
+        if (!userDetails) {
+            userDetails = await this.userService.fetchUserDetails(email);
+            this.userCacheManager.set(email, userDetails);
+        }
+
+        const name = `${userDetails.firstName} ${userDetails.lastName}`;
+        this.notificationService.triggerLoginAlertEmail(name, email);
+    }
+
     // Function to request new JWT Token from Bank SSO.
     async ssoTokenRequest(authCode: string, callbackUri: string): Promise<string> {
         const baseUrl = this.configService.get("SSO_BASE_URL");
@@ -240,9 +252,6 @@ export class AuthService {
     async hostedLogin(email: string, password: string): Promise<boolean> {
         const userDetails: UserDTO = await this.validateUserCredentials(email, password);
         await this.generate2FAToken(userDetails.email);
-
-        const name = `${userDetails.firstName} ${userDetails.lastName}`;
-        this.notificationService.triggerLoginAlertEmail(name, email);
         return true;
     }
 

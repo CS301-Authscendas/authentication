@@ -45,12 +45,12 @@ export class KmsService {
 
     async sign(payload: any): Promise<string> {
         const now = Date.now();
-        const tomorrow = new Date();
-        tomorrow.setDate(tomorrow.getDate() + 1);
+        const ttlString = this.configService.get("JWT_TTL_SECONDS");
+        const ttl = ttlString ? parseInt(ttlString) : 1800;
 
         const tokenPayload = {
             iat: Math.floor(now / 1000),
-            exp: Math.floor(tomorrow.getTime() / 1000),
+            exp: Math.floor(now / 1000 + ttl),
             ...payload,
         };
 
@@ -103,6 +103,14 @@ export class KmsService {
             }
 
             const { header, payload, signature } = result;
+
+            const now = Date.now();
+            const expiration = (payload as UserJWTData).exp;
+
+            if (!expiration || expiration < now / 1000) {
+                throw new BadRequestException("JWT Token has expired!");
+            }
+
             const { encodedPayload, encodedHeader } = this.encodePayload(payload, header);
 
             await this.awsKmsClient

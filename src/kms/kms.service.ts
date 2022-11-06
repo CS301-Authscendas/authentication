@@ -146,7 +146,7 @@ export class KmsService {
         });
 
         const keyMetadata = await Promise.all(keyMetadataPromises);
-        keyMetadata
+        const sortedKeyMetadata = keyMetadata
             .filter((key) => key?.KeyMetadata?.Description?.includes("authcendas") && key?.KeyMetadata?.Enabled)
             .sort((a, b) => {
                 const aCreationDate = a?.KeyMetadata?.CreationDate;
@@ -159,7 +159,11 @@ export class KmsService {
                 return aCreationDate.getTime() - bCreationDate.getTime();
             });
 
-        const selectedKeyId = keyMetadata[0]!.KeyMetadata!.KeyId;
+        if (sortedKeyMetadata.length === 0) {
+            throw new InternalServerErrorException("There are no available signing keys!");
+        }
+
+        const selectedKeyId = sortedKeyMetadata[0]!.KeyMetadata!.KeyId;
 
         await this.cacheManager.set(this.CACHE_ID, selectedKeyId);
 

@@ -27,6 +27,7 @@ import { OrganizationService } from "../organization/organization.service";
 import { UtilHelper } from "../utils";
 import { Auth0LoginDataDTO } from "src/dto/auth0-login-data.dto";
 import { stringify } from "qs";
+import { UserJWTData } from "src/dto/user-jwt-data.dto";
 
 @Injectable()
 export class AuthService {
@@ -86,8 +87,16 @@ export class AuthService {
     async refreshJWTToken(token: string): Promise<string> {
         const jwtToken: string = token.replace("Bearer", "").trim();
         const jwtBody = this.kmsService.decodeToken(jwtToken);
-        const userPayload = jwtBody?.payload as UserJSONPayload;
+        const userPayload = jwtBody?.payload as UserJWTData;
         const email = userPayload?.email;
+
+        const now = Date.now();
+        const ttlString = this.configService.get("JWT_TTL_SECONDS");
+        const ttl = ttlString ? parseInt(ttlString) : 1800;
+
+        userPayload.iat = Math.floor(now / 1000);
+        userPayload.exp = Math.floor(now / 1000 + ttl);
+
         if (!email) {
             throw new BadRequestException("Invalid JWT token!");
         }

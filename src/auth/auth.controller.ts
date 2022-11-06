@@ -3,6 +3,7 @@ import {
     Body,
     Controller,
     Get,
+    Headers,
     Param,
     Post,
     Query,
@@ -83,6 +84,11 @@ export class AuthController {
     @Get("generate-jwt-token/:email")
     async generateJWTToken(@Param("email") email: string, @Response() res: Res) {
         return res.json({ token: await this.authService.generateJWTToken({ email: email }) });
+    }
+
+    @Get("refresh-jwt-token")
+    async refreshJWTToken(@Headers("Authorization") jwtToken: string, @Response() res: Res): Promise<Res> {
+        return res.json({ token: await this.authService.refreshJWTToken(jwtToken) });
     }
 
     @Post("validate-jwt-token")

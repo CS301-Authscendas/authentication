@@ -83,6 +83,17 @@ export class AuthService {
         return await this.kmsService.sign(payload);
     }
 
+    async refreshJWTToken(token: string): Promise<string> {
+        const jwtToken: string = token.replace("Bearer", "").trim();
+        const userPayload = await this.kmsService.decode(jwtToken);
+
+        const email = userPayload.email;
+        if (!email) {
+            throw new BadRequestException("Invalid JWT token!");
+        }
+        return await this.kmsService.sign(userPayload);
+    }
+
     validateSsoToken(jwtToken: string, key: string): boolean {
         try {
             verify(jwtToken, key, { algorithms: ["RS256"] });

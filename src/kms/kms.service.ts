@@ -3,7 +3,7 @@ import { ConfigService } from "@nestjs/config";
 import { KMS } from "aws-sdk";
 import base64url from "base64url";
 import { Cache } from "cache-manager";
-import { decode, Jwt, verify } from "jsonwebtoken";
+import { decode, Jwt } from "jsonwebtoken";
 import { UserJSONPayload } from "../dto/user-json-payload.dto";
 import { UserJWTData } from "../dto/user-jwt-data.dto";
 import { UtilHelper } from "../utils";
@@ -34,16 +34,8 @@ export class KmsService {
         });
     }
 
-    validateSsoToken(jwtToken: string, key: string): boolean {
-        try {
-            verify(jwtToken, key, { algorithms: ["RS256"] });
-        } catch (error) {
-            return false;
-        }
-        return true;
-    }
-
     async sign(payload: any): Promise<string> {
+        const keyId = await this.getKeyId();
         const now = Date.now();
         const ttlString = this.configService.get("JWT_TTL_SECONDS");
         const ttl = ttlString ? parseInt(ttlString) : 1800;
@@ -55,11 +47,11 @@ export class KmsService {
         };
 
         const tokenHeader = {
+            kid: keyId,
             alg: "RS256",
             typ: "JWT",
         };
 
-        const keyId = await this.getKeyId();
         const { encodedPayload, encodedHeader } = this.encodePayload(tokenPayload, tokenHeader);
         const encodedMessage = Buffer.from(`${encodedHeader}.${encodedPayload}`);
 

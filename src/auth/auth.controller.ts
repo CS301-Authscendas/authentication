@@ -75,7 +75,9 @@ export class AuthController {
         const success: boolean = await this.authService.validate2FAToken(email, token);
 
         if (success) {
-            return res.json({ token: await this.authService.generateJWTToken({ email: email }) });
+            const token = await this.authService.generateJWTToken({ email: email });
+            await this.authService.triggerSendLoginAlertEmail(email);
+            return res.json({ token });
         }
 
         throw new UnauthorizedException("Invalid or expired 2FA token.");

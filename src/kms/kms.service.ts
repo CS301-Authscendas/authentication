@@ -3,7 +3,7 @@ import { ConfigService } from "@nestjs/config";
 import { KMS } from "aws-sdk";
 import base64url from "base64url";
 import { Cache } from "cache-manager";
-import { decode, verify } from "jsonwebtoken";
+import { decode, Jwt, verify } from "jsonwebtoken";
 import { UserJSONPayload } from "../dto/user-json-payload.dto";
 import { UserJWTData } from "../dto/user-jwt-data.dto";
 import { UtilHelper } from "../utils";
@@ -88,17 +88,15 @@ export class KmsService {
         };
     }
 
-    async decode(token: string): Promise<UserJSONPayload> {
-        const keyId = await this.getKeyId();
-        const rawPublicKey = await this.awsKmsClient.getPublicKey({ KeyId: keyId }).promise();
-        const publicKey = rawPublicKey.PublicKey;
+    decodeToken(token: string): Jwt | null {
+        return decode(token, { complete: true });
+    }
 
-        if (!publicKey) {
-            throw new InternalServerErrorException("Public key not found");
-        }
+    async verifyAndDecode(token: string): Promise<UserJSONPayload> {
+        const keyId = await this.getKeyId();
 
         try {
-            const result = decode(token, { complete: true });
+            const result = this.decodeToken(token);
 
             if (!result) {
                 throw new BadRequestException("Missing JWT payload for hosted login");

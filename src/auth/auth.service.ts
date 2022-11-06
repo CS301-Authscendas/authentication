@@ -85,9 +85,9 @@ export class AuthService {
 
     async refreshJWTToken(token: string): Promise<string> {
         const jwtToken: string = token.replace("Bearer", "").trim();
-        const userPayload = await this.kmsService.decode(jwtToken);
-
-        const email = userPayload.email;
+        const jwtBody = this.kmsService.decodeToken(jwtToken);
+        const userPayload = jwtBody?.payload as UserJSONPayload;
+        const email = userPayload?.email;
         if (!email) {
             throw new BadRequestException("Invalid JWT token!");
         }
@@ -134,7 +134,7 @@ export class AuthService {
 
         switch (loginMethod) {
             case LoginMethodEnum.Hosted: {
-                const hostedTokenData = await this.kmsService.decode(jwtToken);
+                const hostedTokenData = await this.kmsService.verifyAndDecode(jwtToken);
                 email = hostedTokenData.email;
                 break;
             }

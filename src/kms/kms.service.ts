@@ -51,7 +51,7 @@ export class KmsService {
         const tokenPayload = {
             iat: Math.floor(now / 1000),
             exp: Math.floor(tomorrow.getTime() / 1000),
-            data: payload,
+            ...payload,
         };
 
         const tokenHeader = {
@@ -115,7 +115,7 @@ export class KmsService {
                 })
                 .promise();
 
-            return (payload as UserJWTData).data;
+            return payload as UserJWTData;
         } catch (error) {
             throw new BadRequestException(error?.message || error?.code || "Invalid JWT token");
         }

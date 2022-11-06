@@ -111,10 +111,10 @@ export class AuthController {
     }
 
     @Get("sso/login")
-    ssoRedirect(@Request() req: Req, @Response() res: Res): Res {
+    ssoRedirect(@Response() res: Res): Res {
         const clientId = this.configService.get("SSO_CLIENT_ID");
         const ssoBaseUrl = this.configService.get("SSO_BASE_URL");
-        const callbackUri = encodeURI(`${this.BASE_GATEWAY_URL}/api/auth/sso/callback`);
+        const callbackUri = encodeURI(`${this.BASE_GATEWAY_URL}/auth/sso/callback`);
         const scopes: string[] = this.configService.get("SSO_CLIENT_SCOPE")?.split(",") ?? [];
         const authUri = `${ssoBaseUrl}/oauth/authorize?client_id=${clientId}&redirect_uri=${callbackUri}&response_type=code&scope=${scopes.join(
             "+",
@@ -123,12 +123,12 @@ export class AuthController {
     }
 
     @Get("sso/callback")
-    async oauthCallback(@Request() req: Req, @Response() res: Res, @Query("code") authCode: string): Promise<Res> {
+    async oauthCallback(@Response() res: Res, @Query("code") authCode: string): Promise<Res> {
         if (!authCode) {
             throw new UnauthorizedException("Consent was not provided to web application.");
         }
 
-        const callbackUri = encodeURI(`${this.BASE_GATEWAY_URL}/api/auth/sso/callback?code=${authCode}`);
+        const callbackUri = encodeURI(`${this.BASE_GATEWAY_URL}/auth/sso/callback?code=${authCode}`);
         const jwtToken = await this.authService.ssoTokenRequest(authCode, callbackUri);
         const userDetails = await this.userService.fetchUserDetailsSSO(jwtToken);
 

@@ -3,7 +3,7 @@ import { ConfigService } from "@nestjs/config";
 import { KMS } from "aws-sdk";
 import base64url from "base64url";
 import { Cache } from "cache-manager";
-import { decode, verify } from "jsonwebtoken";
+import { decode, Jwt, verify } from "jsonwebtoken";
 import { UserJSONPayload } from "../dto/user-json-payload.dto";
 import { UserJWTData } from "../dto/user-jwt-data.dto";
 import { UtilHelper } from "../utils";
@@ -45,13 +45,13 @@ export class KmsService {
 
     async sign(payload: any): Promise<string> {
         const now = Date.now();
-        const tomorrow = new Date();
-        tomorrow.setDate(tomorrow.getDate() + 1);
+        const ttlString = this.configService.get("JWT_TTL_SECONDS");
+        const ttl = ttlString ? parseInt(ttlString) : 1800;
 
         const tokenPayload = {
             iat: Math.floor(now / 1000),
-            exp: Math.floor(tomorrow.getTime() / 1000),
-            data: payload,
+            exp: Math.floor(now / 1000 + ttl),
+            ...payload,
         };
 
         const tokenHeader = {
@@ -88,23 +88,29 @@ export class KmsService {
         };
     }
 
-    async decode(token: string): Promise<UserJSONPayload> {
-        const keyId = await this.getKeyId();
-        const rawPublicKey = await this.awsKmsClient.getPublicKey({ KeyId: keyId }).promise();
-        const publicKey = rawPublicKey.PublicKey;
+    decodeToken(token: string): Jwt | null {
+        return decode(token, { complete: true });
+    }
 
-        if (!publicKey) {
-            throw new InternalServerErrorException("Public key not found");
-        }
+    async verifyAndDecode(token: string): Promise<UserJSONPayload> {
+        const keyId = await this.getKeyId();
 
         try {
-            const result = decode(token, { complete: true });
+            const result = this.decodeToken(token);
 
             if (!result) {
                 throw new BadRequestException("Missing JWT payload for hosted login");
             }
 
             const { header, payload, signature } = result;
+
+            const now = Date.now();
+            const expiration = (payload as UserJWTData).exp;
+
+            if (!expiration || expiration < now / 1000) {
+                throw new BadRequestException("JWT Token has expired!");
+            }
+
             const { encodedPayload, encodedHeader } = this.encodePayload(payload, header);
 
             await this.awsKmsClient
@@ -117,7 +123,7 @@ export class KmsService {
                 })
                 .promise();
 
-            return (payload as UserJWTData).data;
+            return payload as UserJWTData;
         } catch (error) {
             throw new BadRequestException(error?.message || error?.code || "Invalid JWT token");
         }
@@ -146,7 +152,7 @@ export class KmsService {
         });
 
         const keyMetadata = await Promise.all(keyMetadataPromises);
-        keyMetadata
+        const sortedKeyMetadata = keyMetadata
             .filter((key) => key?.KeyMetadata?.Description?.includes("authcendas") && key?.KeyMetadata?.Enabled)
             .sort((a, b) => {
                 const aCreationDate = a?.KeyMetadata?.CreationDate;
@@ -159,7 +165,11 @@ export class KmsService {
                 return aCreationDate.getTime() - bCreationDate.getTime();
             });
 
-        const selectedKeyId = keyMetadata[0]!.KeyMetadata!.KeyId;
+        if (sortedKeyMetadata.length === 0) {
+            throw new InternalServerErrorException("There are no available signing keys!");
+        }
+
+        const selectedKeyId = sortedKeyMetadata[0]!.KeyMetadata!.KeyId;
 
         await this.cacheManager.set(this.CACHE_ID, selectedKeyId);
 

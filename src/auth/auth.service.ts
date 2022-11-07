@@ -47,7 +47,7 @@ export class AuthService {
         @Inject(CACHE_MANAGER) private readonly userCacheManager: Cache,
     ) {
         const tokenWindow = configService.get("2FA_TOKEN_WINDOW_SECONDS");
-        this.ssoPublicKey = configService.get("SSO_PUBLIC_KEY") ?? "";
+        this.ssoPublicKey = configService.get("SSO_PUBLIC_KEY").replace(/\\n/g, "\n") ?? "";
 
         Logger.log(UtilHelper.isProduction(), this.ssoPublicKey);
 

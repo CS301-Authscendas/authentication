@@ -17,6 +17,9 @@ import * as bcrypt from "bcryptjs";
 import { Cache } from "cache-manager";
 import { decode, JwtPayload, verify } from "jsonwebtoken";
 import { JwksClient, SigningKey } from "jwks-rsa";
+import { stringify } from "qs";
+import { Auth0LoginDataDTO } from "src/dto/auth0-login-data.dto";
+import { UserJWTData } from "src/dto/user-jwt-data.dto";
 import { BankSSOUser } from "../dto/bank-sso-user.dto";
 import { LoginMethodEnum } from "../dto/login-method.enum";
 import { Organization } from "../dto/organization.dto";
@@ -25,9 +28,6 @@ import { UserJSONPayload } from "../dto/user-json-payload.dto";
 import { KmsService } from "../kms/kms.service";
 import { OrganizationService } from "../organization/organization.service";
 import { UtilHelper } from "../utils";
-import { Auth0LoginDataDTO } from "src/dto/auth0-login-data.dto";
-import { stringify } from "qs";
-import { UserJWTData } from "src/dto/user-jwt-data.dto";
 
 @Injectable()
 export class AuthService {
@@ -46,13 +46,13 @@ export class AuthService {
         @Inject(CACHE_MANAGER) private readonly userCacheManager: Cache,
     ) {
         const tokenWindow = configService.get("2FA_TOKEN_WINDOW_SECONDS");
-        this.ssoPublicKey = this.configService.get("SSO_PUBLIC_KEY") ?? "";
+        this.ssoPublicKey = configService.get("SSO_PUBLIC_KEY") ?? "";
 
-        if (UtilHelper.isProduction() && this.ssoPublicKey === "") {
+        if (UtilHelper.isProduction() && !this.ssoPublicKey) {
             throw new InternalServerErrorException("Missing environment variable for sso token");
         }
 
-        if (!tokenWindow && UtilHelper.isProduction()) {
+        if (UtilHelper.isProduction() && !tokenWindow) {
             throw new InternalServerErrorException("2FA_TOKEN_WINDOW_SECONDS has not been set!");
         }
 
@@ -103,9 +103,13 @@ export class AuthService {
         return await this.kmsService.sign(userPayload);
     }
 
-    validateSsoToken(jwtToken: string, key: string): boolean {
+    validateSsoToken(jwtToken: string): boolean {
+        if (!this.ssoPublicKey) {
+            throw new BadRequestException("SSO public key is missing!");
+        }
+
         try {
-            verify(jwtToken, key, { algorithms: ["RS256"] });
+            verify(jwtToken, this.ssoPublicKey, { algorithms: ["RS256"] });
             return true;
         } catch (error) {
             throw new BadRequestException(error.message ?? "Invalid SSO jwt token");
@@ -148,7 +152,7 @@ export class AuthService {
                 break;
             }
             case LoginMethodEnum.SSO: {
-                this.validateSsoToken(jwtToken, this.ssoPublicKey);
+                this.validateSsoToken(jwtToken);
                 const ssoUser: BankSSOUser = await this.userService.fetchUserDetailsSSO(jwtToken);
                 email = ssoUser.email;
                 break;

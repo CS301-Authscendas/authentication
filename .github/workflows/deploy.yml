@@ -91,6 +91,9 @@ jobs:
           container-name: ${{ format('{0}-authentication-1a', secrets.APP_NAME) }}
           image: ${{ needs.build.outputs.image }}
 
+      - name: echo
+        run: echo ${{ needs.build.outputs }}
+
       - name: Deploy Amazon ECS Task Definition for Availability Zone 1a
         uses: aws-actions/amazon-ecs-deploy-task-definition@v1
         with:

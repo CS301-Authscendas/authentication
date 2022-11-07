@@ -5,6 +5,7 @@ import {
     Inject,
     Injectable,
     InternalServerErrorException,
+    Logger,
     UnauthorizedException,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
@@ -47,6 +48,8 @@ export class AuthService {
     ) {
         const tokenWindow = configService.get("2FA_TOKEN_WINDOW_SECONDS");
         this.ssoPublicKey = configService.get("SSO_PUBLIC_KEY") ?? "";
+
+        Logger.log(UtilHelper.isProduction(), this.ssoPublicKey);
 
         if (UtilHelper.isProduction() && !this.ssoPublicKey) {
             throw new InternalServerErrorException("Missing environment variable for sso token");

@@ -28,13 +28,11 @@ jobs:
           npm run build
           npm run test
 
-  build:
-    name: Build Docker and Push to ECR
-    needs: test
+  build_deploy_1a:
+    name: Build & Deploy to ECS AZ 1a
+    needs: build
     runs-on: ubuntu-latest
     if: github.ref_name == 'main'
-    outputs:
-      image: ${{ steps.build-image.outputs.image }}
     steps:
       - name: Check out code
         uses: actions/checkout@v2
@@ -61,22 +59,6 @@ jobs:
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
           echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
 
-  deploy_1a:
-    name: Deploy to ECS AZ 1a
-    needs: build
-    runs-on: ubuntu-latest
-    if: github.ref_name == 'main'
-    steps:
-      - name: Check out code
-        uses: actions/checkout@v2
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1
-
       - name: Download Task Definition for Availability Zone 1a
         env:
           TASK_DEFINITION: ${{ format('{0}-task-authentication-1a', secrets.APP_NAME) }}
@@ -89,7 +71,7 @@ jobs:
         with:
           task-definition: task-definition.json
           container-name: ${{ format('{0}-authentication-1a', secrets.APP_NAME) }}
-          image: ${{ needs.build.outputs.image }}
+          image: ${{ steps-build-image.outputs.image }}
 
       - name: Deploy Amazon ECS Task Definition for Availability Zone 1a
         uses: aws-actions/amazon-ecs-deploy-task-definition@v1
@@ -99,8 +81,8 @@ jobs:
           cluster: ${{ format('{0}-ecs-authentication-1a', secrets.APP_NAME) }}
           wait-for-service-stability: true
 
-  deploy_1b:
-    name: Deploy to ECS AZ 1b
+  build_deploy_1b:
+    name: Build & Deploy to ECS AZ 1b
     needs: build
     runs-on: ubuntu-latest
     if: github.ref_name == 'main'
@@ -114,6 +96,21 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+
+      - name: Build, tag, and push image to Amazon ECR
+        id: build-image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: ${{ format('{0}-ecr-authentication', secrets.APP_NAME) }}
+          IMAGE_TAG: ${{ format('{0}-ecr-authentication', secrets.APP_NAME) }}
+        run: |
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
 
       - name: Download Task Definition for Availability Zone 1b
         env:
@@ -127,7 +124,7 @@ jobs:
         with:
           task-definition: task-definition.json
           container-name: ${{ format('{0}-authentication-1b', secrets.APP_NAME) }}
-          image: ${{ needs.build.outputs.image }}
+          image: ${{ steps-build-image.outputs.image }}
 
       - name: Deploy Amazon ECS Task Definition for Availability Zone 1b
         uses: aws-actions/amazon-ecs-deploy-task-definition@v1

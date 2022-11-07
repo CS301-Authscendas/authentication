@@ -89,7 +89,7 @@ jobs:
         with:
           task-definition: task-definition.json
           container-name: ${{ format('{0}-authentication-1a', secrets.APP_NAME) }}
-          image: ${{ needs.build.image }}
+          image: ${{ needs.build.outputs.image }}
 
       - name: Deploy Amazon ECS Task Definition for Availability Zone 1a
         uses: aws-actions/amazon-ecs-deploy-task-definition@v1
@@ -127,7 +127,7 @@ jobs:
         with:
           task-definition: task-definition.json
           container-name: ${{ format('{0}-authentication-1b', secrets.APP_NAME) }}
-          image: ${{ needs.build.image }}
+          image: ${{ needs.build.outputs.image }}
 
       - name: Deploy Amazon ECS Task Definition for Availability Zone 1b
         uses: aws-actions/amazon-ecs-deploy-task-definition@v1
